@@ -37,7 +37,9 @@ struct StudyView: View {
                 Text(configuration.deckName)
                     .font(.headline)
                     .foregroundStyle(AppTheme.primaryText)
-                Text("\(configuration.method.title) · \(configuration.sessionKind.title)")
+                Text(
+                    "\(configuration.method.title) · \(configuration.sessionKind.title) · \(configuration.schedulerAlgorithm.title)"
+                )
                     .font(.caption)
                     .foregroundStyle(
                         configuration.updatesSchedule ? AppTheme.secondaryText : AppTheme.orange
@@ -215,9 +217,23 @@ struct StudyView: View {
         if configuration.updatesSchedule {
             switch prompt {
             case .word(let word, _):
-                if let state = word.reviewState { Scheduler.apply(grade, to: state) }
+                if let state = word.reviewState {
+                    Scheduler.apply(
+                        grade,
+                        to: state,
+                        algorithm: configuration.schedulerAlgorithm,
+                        desiredRetention: configuration.desiredRetention
+                    )
+                }
             case .character(let character):
-                if let state = character.reviewState { Scheduler.apply(grade, to: state) }
+                if let state = character.reviewState {
+                    Scheduler.apply(
+                        grade,
+                        to: state,
+                        algorithm: configuration.schedulerAlgorithm,
+                        desiredRetention: configuration.desiredRetention
+                    )
+                }
             }
             try? modelContext.save()
         }

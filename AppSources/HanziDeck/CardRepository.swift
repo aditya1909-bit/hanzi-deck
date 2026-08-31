@@ -171,5 +171,9 @@ enum CardRepository {
         state.repetitions = 0
         state.lapses = 0
         state.relearningBaseInterval = 0
+        state.lastReviewAt = nil
+        state.fsrsStability = 0
+        state.fsrsDifficulty = 0
+        state.leitnerBox = 1
     }
 }

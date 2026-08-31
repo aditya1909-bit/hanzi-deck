@@ -23,6 +23,8 @@ struct StudyConfiguration: Identifiable {
     let deckName: String
     let method: LearningMethod
     let sessionKind: StudySessionKind
+    let schedulerAlgorithm: SchedulerAlgorithm
+    let desiredRetention: Double
     let prompts: [StudyPrompt]
 
     var updatesSchedule: Bool { sessionKind.updatesSchedule }
@@ -61,6 +63,8 @@ enum StudySessionBuilder {
             deckName: deck.name,
             method: method,
             sessionKind: kind,
+            schedulerAlgorithm: deck.schedulerAlgorithm,
+            desiredRetention: deck.desiredRetention,
             prompts: prompts
         )
     }

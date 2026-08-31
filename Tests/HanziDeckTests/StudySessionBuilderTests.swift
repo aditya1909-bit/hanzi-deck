@@ -90,6 +90,22 @@ final class StudySessionBuilderTests: XCTestCase {
         XCTAssertTrue(StudySessionKind.due.updatesSchedule)
     }
 
+    func testSessionUsesTheDeckSchedulerConfiguration() {
+        let deck = makeDeck()
+        deck.schedulerAlgorithm = .sm2
+        deck.desiredRetention = 0.93
+
+        let configuration = StudySessionBuilder.build(
+            deck: deck,
+            method: .hanziRecognition,
+            kind: .due,
+            now: now
+        )
+
+        XCTAssertEqual(configuration.schedulerAlgorithm, .sm2)
+        XCTAssertEqual(configuration.desiredRetention, 0.93, accuracy: 0.0001)
+    }
+
     private func makeDeck() -> Deck {
         let deck = Deck(name: "Test", now: now)
         let card = WordCard(

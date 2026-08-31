@@ -6,7 +6,32 @@ enum Scheduler {
     static func apply(
         _ grade: ReviewGrade,
         to state: ReviewStateFields,
+        algorithm: SchedulerAlgorithm = .simple,
+        desiredRetention: Double = 0.9,
         now: Date = .now
+    ) {
+        switch algorithm {
+        case .fsrs6:
+            FSRS6Scheduler.apply(
+                grade,
+                to: state,
+                desiredRetention: desiredRetention,
+                now: now
+            )
+        case .sm2:
+            SM2Scheduler.apply(grade, to: state, now: now)
+        case .leitner:
+            LeitnerScheduler.apply(grade, to: state, now: now)
+        case .simple:
+            applySimple(grade, to: state, now: now)
+        }
+        state.lastReviewAt = now
+    }
+
+    private static func applySimple(
+        _ grade: ReviewGrade,
+        to state: ReviewStateFields,
+        now: Date
     ) {
         switch state.phase {
         case .new, .learning:

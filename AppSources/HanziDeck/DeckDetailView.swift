@@ -162,6 +162,37 @@ struct DeckDetailView: View {
                 Spacer()
             }
 
+            HStack(spacing: 14) {
+                Label("Scheduler", systemImage: "calendar.badge.clock")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.secondaryText)
+
+                Picker("Scheduler", selection: schedulerSelection) {
+                    ForEach(SchedulerAlgorithm.allCases) { algorithm in
+                        Text(algorithm.title).tag(algorithm)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 220)
+
+                Text(deck.schedulerAlgorithm.description)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryText)
+
+                if deck.schedulerAlgorithm == .fsrs6 {
+                    Spacer()
+                    Text("Target \(deck.desiredRetention, format: .percent.precision(.fractionLength(0)))")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(AppTheme.primaryText)
+                    Slider(value: retentionSelection, in: 0.70...0.97, step: 0.01)
+                        .frame(width: 130)
+                        .accessibilityLabel("FSRS target retention")
+                } else {
+                    Spacer()
+                }
+            }
+
             HStack(spacing: 12) {
                 Button("Study This Deck · \(dueCount) Due") {
                     beginStudy(.due)
@@ -192,6 +223,28 @@ struct DeckDetailView: View {
         }
         .padding(16)
         .darkPanel()
+    }
+
+    private var schedulerSelection: Binding<SchedulerAlgorithm> {
+        Binding(
+            get: { deck.schedulerAlgorithm },
+            set: { algorithm in
+                deck.schedulerAlgorithm = algorithm
+                deck.updatedAt = .now
+                try? modelContext.save()
+            }
+        )
+    }
+
+    private var retentionSelection: Binding<Double> {
+        Binding(
+            get: { deck.desiredRetention },
+            set: { retention in
+                deck.desiredRetention = retention
+                deck.updatedAt = .now
+                try? modelContext.save()
+            }
+        )
     }
 
     @ViewBuilder

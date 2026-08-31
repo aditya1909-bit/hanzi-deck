@@ -16,6 +16,17 @@ Every deck supports five prompt styles:
 
 The selected method can be combined with Due Reviews, Learn New, Difficult Practice, a 20-card Quick Cram, or an unrestricted Free Practice session. Due Reviews and Learn New update the spaced-repetition schedule; voluntary practice does not move due dates.
 
+## Scheduling algorithms
+
+Each deck can use a different scheduling algorithm, and you can switch from the deck screen without recreating cards or losing the current due dates:
+
+- **FSRS-6:** the recommended default, with an adjustable 70–97% target retention
+- **SM-2 Classic:** the original SuperMemo quality-and-ease algorithm
+- **Leitner Boxes:** a simple seven-box progression
+- **Simple:** predictable Again / Hard / Good / Easy interval multipliers
+
+The chosen algorithm controls the next scheduled review. Word and character progress remains independent, and Free Practice, Difficult Practice, and Quick Cram never alter scheduling data.
+
 ## Highlights
 
 - Native SwiftUI interface for macOS 14+
@@ -24,7 +35,7 @@ The selected method can be combined with Due Reviews, Learn New, Difficult Pract
 - Automatic, editable offline dictionary lookup
 - Offline screenshot and photo import using Apple Vision
 - Simplified and traditional Chinese support
-- Four-button Again / Hard / Good / Easy scheduling
+- Per-deck FSRS-6, SM-2, Leitner, or simple scheduling
 - Dark-only black and McLaren-orange design
 - Full keyboard review controls and VoiceOver labels
 - No account, analytics, server, or runtime dependency

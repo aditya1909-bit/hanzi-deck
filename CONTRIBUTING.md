@@ -30,6 +30,10 @@ CC-CEDICT is licensed separately under CC BY-SA 4.0. If you rebuild or modify th
 python3 Scripts/build_dictionary.py /path/to/cedict.txt.gz AppSources/HanziDeck/Resources/cedict.sqlite
 ```
 
+## Scheduler changes
+
+Schedulers are small local implementations behind `Scheduler.apply`. Keep them deterministic and add fixed-clock tests for every changed transition. FSRS behavior follows the published FSRS-6 formulas and default parameters; document any future parameter or formula changes in the pull request.
+
 ## Code style
 
 Match the surrounding code. Prefer descriptive names, short functions, and direct control flow. Comments should explain a non-obvious decision, not restate the code.

@@ -92,6 +92,33 @@ enum StudySessionKind: String, CaseIterable, Identifiable {
     }
 }
 
+enum SchedulerAlgorithm: String, CaseIterable, Identifiable {
+    case fsrs6
+    case sm2
+    case leitner
+    case simple
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .fsrs6: "FSRS-6"
+        case .sm2: "SM-2 Classic"
+        case .leitner: "Leitner Boxes"
+        case .simple: "Simple"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .fsrs6: "Adapts stability and difficulty to a target retention"
+        case .sm2: "The classic quality-and-ease algorithm"
+        case .leitner: "Moves cards through increasingly spaced boxes"
+        case .simple: "Predictable Anki-style interval multipliers"
+        }
+    }
+}
+
 enum ReviewPhase: String {
     case new
     case learning
@@ -123,6 +150,8 @@ final class Deck {
     var name: String
     var createdAt: Date
     var updatedAt: Date
+    var schedulerAlgorithmRaw: String = SchedulerAlgorithm.fsrs6.rawValue
+    var desiredRetention: Double = 0.9
 
     @Relationship(deleteRule: .cascade, inverse: \WordCard.deck)
     var wordCards: [WordCard]
@@ -135,8 +164,15 @@ final class Deck {
         self.name = name
         createdAt = now
         updatedAt = now
+        schedulerAlgorithmRaw = SchedulerAlgorithm.fsrs6.rawValue
+        desiredRetention = 0.9
         wordCards = []
         characterCards = []
+    }
+
+    var schedulerAlgorithm: SchedulerAlgorithm {
+        get { SchedulerAlgorithm(rawValue: schedulerAlgorithmRaw) ?? .fsrs6 }
+        set { schedulerAlgorithmRaw = newValue.rawValue }
     }
 }
 
@@ -215,6 +251,10 @@ protocol ReviewStateFields: AnyObject {
     var repetitions: Int { get set }
     var lapses: Int { get set }
     var relearningBaseInterval: Double { get set }
+    var lastReviewAt: Date? { get set }
+    var fsrsStability: Double { get set }
+    var fsrsDifficulty: Double { get set }
+    var leitnerBox: Int { get set }
 }
 
 extension ReviewStateFields {
@@ -234,6 +274,10 @@ final class WordReviewState: ReviewStateFields {
     var repetitions: Int
     var lapses: Int
     var relearningBaseInterval: Double
+    var lastReviewAt: Date?
+    var fsrsStability: Double = 0
+    var fsrsDifficulty: Double = 0
+    var leitnerBox: Int = 1
     var card: WordCard?
 
     init(card: WordCard, now: Date = .now) {
@@ -245,6 +289,10 @@ final class WordReviewState: ReviewStateFields {
         repetitions = 0
         lapses = 0
         relearningBaseInterval = 0
+        lastReviewAt = nil
+        fsrsStability = 0
+        fsrsDifficulty = 0
+        leitnerBox = 1
         self.card = card
     }
 }
@@ -259,6 +307,10 @@ final class CharacterReviewState: ReviewStateFields {
     var repetitions: Int
     var lapses: Int
     var relearningBaseInterval: Double
+    var lastReviewAt: Date?
+    var fsrsStability: Double = 0
+    var fsrsDifficulty: Double = 0
+    var leitnerBox: Int = 1
     var card: CharacterCard?
 
     init(card: CharacterCard, now: Date = .now) {
@@ -270,6 +322,10 @@ final class CharacterReviewState: ReviewStateFields {
         repetitions = 0
         lapses = 0
         relearningBaseInterval = 0
+        lastReviewAt = nil
+        fsrsStability = 0
+        fsrsDifficulty = 0
+        leitnerBox = 1
         self.card = card
     }
 }
