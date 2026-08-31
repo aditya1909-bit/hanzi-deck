@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest an improvement to the learning experience.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: learner_problem
+    attributes:
+      label: Learner problem
+      description: What is difficult today, and who would this help?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Suggested behavior
+      description: Describe the smallest useful version of the change.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
