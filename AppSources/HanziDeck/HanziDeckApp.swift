@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftData
 import SwiftUI
 
@@ -5,14 +6,7 @@ import SwiftUI
 struct HanziDeckApp: App {
     private let modelContainer: ModelContainer = {
         do {
-            return try ModelContainer(
-                for: Deck.self,
-                WordCard.self,
-                CharacterCard.self,
-                CharacterContext.self,
-                WordReviewState.self,
-                CharacterReviewState.self
-            )
+            return try ModelContainerFactory.make(cloudSyncEnabled: false)
         } catch {
             fatalError("Could not create the local data store: \(error)")
         }
@@ -44,3 +38,4 @@ struct HanziDeckApp: App {
 extension Notification.Name {
     static let newDeckRequested = Notification.Name("HanziDeck.newDeckRequested")
 }
+#endif

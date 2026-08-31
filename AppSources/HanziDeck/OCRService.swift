@@ -1,3 +1,4 @@
+#if os(macOS)
 @preconcurrency import AppKit
 import Foundation
 @preconcurrency import Vision
@@ -47,3 +48,4 @@ enum OCRService {
         return lines
     }
 }
+#endif

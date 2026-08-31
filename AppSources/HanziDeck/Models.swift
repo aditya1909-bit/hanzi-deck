@@ -146,18 +146,18 @@ enum ReviewGrade: Int, CaseIterable, Identifiable {
 
 @Model
 final class Deck {
-    @Attribute(.unique) var id: UUID
-    var name: String
-    var createdAt: Date
-    var updatedAt: Date
+    var id: UUID = UUID()
+    var name: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var schedulerAlgorithmRaw: String = SchedulerAlgorithm.fsrs6.rawValue
     var desiredRetention: Double = 0.9
 
     @Relationship(deleteRule: .cascade, inverse: \WordCard.deck)
-    var wordCards: [WordCard]
+    var wordCards: [WordCard]?
 
     @Relationship(deleteRule: .cascade, inverse: \CharacterCard.deck)
-    var characterCards: [CharacterCard]
+    var characterCards: [CharacterCard]?
 
     init(name: String, now: Date = .now) {
         id = UUID()
@@ -174,23 +174,26 @@ final class Deck {
         get { SchedulerAlgorithm(rawValue: schedulerAlgorithmRaw) ?? .fsrs6 }
         set { schedulerAlgorithmRaw = newValue.rawValue }
     }
+
+    var words: [WordCard] { wordCards ?? [] }
+    var characters: [CharacterCard] { characterCards ?? [] }
 }
 
 @Model
 final class WordCard {
-    @Attribute(.unique) var id: UUID
-    var hanzi: String
-    var pinyin: String
-    var meaning: String
-    var createdAt: Date
-    var updatedAt: Date
+    var id: UUID = UUID()
+    var hanzi: String = ""
+    var pinyin: String = ""
+    var meaning: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deck: Deck?
 
     @Relationship(deleteRule: .cascade, inverse: \WordReviewState.card)
     var reviewState: WordReviewState?
 
     @Relationship(deleteRule: .cascade, inverse: \CharacterContext.sourceWord)
-    var characterContexts: [CharacterContext]
+    var characterContexts: [CharacterContext]?
 
     init(hanzi: String, pinyin: String, meaning: String, deck: Deck, now: Date = .now) {
         id = UUID()
@@ -206,16 +209,16 @@ final class WordCard {
 
 @Model
 final class CharacterCard {
-    @Attribute(.unique) var id: UUID
-    var glyph: String
-    var createdAt: Date
+    var id: UUID = UUID()
+    var glyph: String = ""
+    var createdAt: Date = Date.now
     var deck: Deck?
 
     @Relationship(deleteRule: .cascade, inverse: \CharacterReviewState.card)
     var reviewState: CharacterReviewState?
 
     @Relationship(deleteRule: .cascade, inverse: \CharacterContext.characterCard)
-    var contexts: [CharacterContext]
+    var contexts: [CharacterContext]?
 
     init(glyph: String, deck: Deck, now: Date = .now) {
         id = UUID()
@@ -228,9 +231,9 @@ final class CharacterCard {
 
 @Model
 final class CharacterContext {
-    @Attribute(.unique) var id: UUID
-    var pinyin: String
-    var position: Int
+    var id: UUID = UUID()
+    var pinyin: String = ""
+    var position: Int = 0
     var characterCard: CharacterCard?
     var sourceWord: WordCard?
 
@@ -241,6 +244,14 @@ final class CharacterContext {
         self.characterCard = characterCard
         self.sourceWord = sourceWord
     }
+}
+
+extension WordCard {
+    var contexts: [CharacterContext] { characterContexts ?? [] }
+}
+
+extension CharacterCard {
+    var sourceContexts: [CharacterContext] { contexts ?? [] }
 }
 
 protocol ReviewStateFields: AnyObject {
@@ -266,14 +277,14 @@ extension ReviewStateFields {
 
 @Model
 final class WordReviewState: ReviewStateFields {
-    @Attribute(.unique) var id: UUID
-    var dueAt: Date
-    var phaseRaw: String
-    var intervalDays: Double
-    var easeFactor: Double
-    var repetitions: Int
-    var lapses: Int
-    var relearningBaseInterval: Double
+    var id: UUID = UUID()
+    var dueAt: Date = Date.now
+    var phaseRaw: String = ReviewPhase.new.rawValue
+    var intervalDays: Double = 0
+    var easeFactor: Double = 2.5
+    var repetitions: Int = 0
+    var lapses: Int = 0
+    var relearningBaseInterval: Double = 0
     var lastReviewAt: Date?
     var fsrsStability: Double = 0
     var fsrsDifficulty: Double = 0
@@ -299,14 +310,14 @@ final class WordReviewState: ReviewStateFields {
 
 @Model
 final class CharacterReviewState: ReviewStateFields {
-    @Attribute(.unique) var id: UUID
-    var dueAt: Date
-    var phaseRaw: String
-    var intervalDays: Double
-    var easeFactor: Double
-    var repetitions: Int
-    var lapses: Int
-    var relearningBaseInterval: Double
+    var id: UUID = UUID()
+    var dueAt: Date = Date.now
+    var phaseRaw: String = ReviewPhase.new.rawValue
+    var intervalDays: Double = 0
+    var easeFactor: Double = 2.5
+    var repetitions: Int = 0
+    var lapses: Int = 0
+    var relearningBaseInterval: Double = 0
     var lastReviewAt: Date?
     var fsrsStability: Double = 0
     var fsrsDifficulty: Double = 0

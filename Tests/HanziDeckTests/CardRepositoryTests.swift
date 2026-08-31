@@ -33,11 +33,11 @@ final class CardRepositoryTests: XCTestCase {
             context: context
         )
 
-        let xingCards = deck.characterCards.filter { $0.glyph == "行" }
+        let xingCards = deck.characters.filter { $0.glyph == "行" }
         XCTAssertEqual(xingCards.count, 1)
-        XCTAssertEqual(Set(xingCards[0].contexts.map(\.pinyin)), Set(["háng", "xíng"]))
+        XCTAssertEqual(Set(xingCards[0].sourceContexts.map(\.pinyin)), Set(["háng", "xíng"]))
         XCTAssertNotEqual(
-            deck.wordCards.first?.reviewState?.id,
+            deck.words.first?.reviewState?.id,
             xingCards[0].reviewState?.id
         )
     }
@@ -81,9 +81,9 @@ final class CardRepositoryTests: XCTestCase {
             breakdown: [CharacterDraft(glyph: "学", pinyin: "xué", position: 0)],
             context: context
         )
-        XCTAssertEqual(deck.characterCards.count, 1)
+        XCTAssertEqual(deck.characters.count, 1)
         try CardRepository.deleteWord(word, context: context)
-        XCTAssertEqual(deck.characterCards.count, 0)
+        XCTAssertEqual(deck.characters.count, 0)
     }
 
     private func makeContainer() throws -> ModelContainer {

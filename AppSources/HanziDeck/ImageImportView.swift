@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -186,7 +187,7 @@ struct ImageImportView: View {
     }
 
     private func isDuplicate(_ hanzi: String) -> Bool {
-        deck.wordCards.contains { $0.hanzi == hanzi }
+        deck.words.contains { $0.hanzi == hanzi }
     }
 
     private func importCards() {
@@ -313,3 +314,4 @@ private struct ImageImportRow: View {
         }
     }
 }
+#endif

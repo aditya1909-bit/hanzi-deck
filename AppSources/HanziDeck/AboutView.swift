@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 struct AboutView: View {
@@ -47,3 +48,4 @@ struct AboutView: View {
         .background(AppTheme.background)
     }
 }
+#endif

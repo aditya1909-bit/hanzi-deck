@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftData
 import SwiftUI
 
@@ -136,11 +137,11 @@ private struct DeckSidebarRow: View {
     let isSelected: Bool
 
     private var wordDue: Int {
-        deck.wordCards.filter { ($0.reviewState?.dueAt ?? .distantFuture) <= .now }.count
+        deck.words.filter { ($0.reviewState?.dueAt ?? .distantFuture) <= .now }.count
     }
 
     private var characterDue: Int {
-        deck.characterCards.filter { ($0.reviewState?.dueAt ?? .distantFuture) <= .now }.count
+        deck.characters.filter { ($0.reviewState?.dueAt ?? .distantFuture) <= .now }.count
     }
 
     var body: some View {
@@ -203,3 +204,4 @@ private struct NewDeckView: View {
         dismiss()
     }
 }
+#endif

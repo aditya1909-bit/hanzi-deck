@@ -37,7 +37,7 @@ final class StudySessionBuilderTests: XCTestCase {
         let character = CharacterCard(glyph: "学", deck: deck, now: now)
         let state = CharacterReviewState(card: character, now: now)
         character.reviewState = state
-        deck.characterCards.append(character)
+        deck.characterCards?.append(character)
 
         let characterOnly = StudySessionBuilder.build(
             deck: deck,
@@ -71,7 +71,7 @@ final class StudySessionBuilderTests: XCTestCase {
             state.lapses = index == 0 ? 2 : 0
             state.dueAt = index < 3 ? now : now.addingTimeInterval(Scheduler.day)
             card.reviewState = state
-            deck.wordCards.append(card)
+            deck.wordCards?.append(card)
         }
 
         XCTAssertEqual(
@@ -117,7 +117,7 @@ final class StudySessionBuilderTests: XCTestCase {
         )
         let state = WordReviewState(card: card, now: now)
         card.reviewState = state
-        deck.wordCards.append(card)
+        deck.wordCards?.append(card)
         return deck
     }
 

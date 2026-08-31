@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftData
 import SwiftUI
 
@@ -15,7 +16,7 @@ struct DeckDetailView: View {
     @State private var deleteTarget: WordCard?
 
     private var filteredWords: [WordCard] {
-        deck.wordCards
+        deck.words
             .filter {
                 searchText.isEmpty
                     || $0.hanzi.localizedCaseInsensitiveContains(searchText)
@@ -26,11 +27,11 @@ struct DeckDetailView: View {
     }
 
     private var filteredCharacters: [CharacterCard] {
-        deck.characterCards
+        deck.characters
             .filter { character in
                 searchText.isEmpty
                     || character.glyph.contains(searchText)
-                    || character.contexts.contains {
+                    || character.sourceContexts.contains {
                         $0.pinyin.localizedCaseInsensitiveContains(searchText)
                             || ($0.sourceWord?.hanzi.contains(searchText) ?? false)
                     }
@@ -43,7 +44,7 @@ struct DeckDetailView: View {
     }
 
     private var totalCount: Int {
-        mode == .word ? deck.wordCards.count : deck.characterCards.count
+        mode == .word ? deck.words.count : deck.characters.count
     }
 
     var body: some View {
@@ -89,7 +90,7 @@ struct DeckDetailView: View {
                     Text(deck.name)
                         .font(.system(size: 30, weight: .bold))
                         .foregroundStyle(AppTheme.primaryText)
-                    Text("\(deck.wordCards.count) words · \(deck.characterCards.count) unique characters")
+                    Text("\(deck.words.count) words · \(deck.characters.count) unique characters")
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 Spacer()
@@ -344,7 +345,7 @@ private struct CharacterRow: View {
     let character: CharacterCard
 
     private var contextLines: [String] {
-        let lines = character.contexts.compactMap { context -> String? in
+        let lines = character.sourceContexts.compactMap { context -> String? in
             guard let word = context.sourceWord else { return nil }
             return "\(context.pinyin) — \(word.hanzi)"
         }
@@ -385,3 +386,4 @@ private struct DueBadge: View {
             .clipShape(Capsule())
     }
 }
+#endif

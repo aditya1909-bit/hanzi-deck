@@ -119,7 +119,7 @@ enum CardRepository {
               breakdown.allSatisfy({ !$0.pinyin.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
             throw CardRepositoryError.incompleteCharacterPinyin
         }
-        if deck.wordCards.contains(where: { $0.id != word?.id && $0.hanzi == hanzi }) {
+        if deck.words.contains(where: { $0.id != word?.id && $0.hanzi == hanzi }) {
             throw CardRepositoryError.duplicateWord
         }
     }
@@ -133,7 +133,7 @@ enum CardRepository {
     ) {
         for draft in breakdown {
             let character: CharacterCard
-            if let existing = deck.characterCards.first(where: { $0.glyph == draft.glyph }) {
+            if let existing = deck.characters.first(where: { $0.glyph == draft.glyph }) {
                 character = existing
             } else {
                 character = CharacterCard(glyph: draft.glyph, deck: deck, now: now)
@@ -153,12 +153,12 @@ enum CardRepository {
     }
 
     private static func removeContexts(for word: WordCard, context: ModelContext) {
-        let oldContexts = word.characterContexts
+        let oldContexts = word.contexts
         let affectedCharacters = oldContexts.compactMap(\.characterCard)
         for source in oldContexts {
             context.delete(source)
         }
-        for character in affectedCharacters where character.contexts.allSatisfy({ $0.sourceWord?.id == word.id }) {
+        for character in affectedCharacters where character.sourceContexts.allSatisfy({ $0.sourceWord?.id == word.id }) {
             context.delete(character)
         }
     }

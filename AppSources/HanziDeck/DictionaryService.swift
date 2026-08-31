@@ -148,7 +148,12 @@ final class DictionaryService: ObservableObject {
     }
 
     private func openDatabase() {
-        guard let url = Bundle.module.url(forResource: "cedict", withExtension: "sqlite") else {
+        #if SWIFT_PACKAGE
+        let resourceBundle = Bundle.module
+        #else
+        let resourceBundle = Bundle.main
+        #endif
+        guard let url = resourceBundle.url(forResource: "cedict", withExtension: "sqlite") else {
             errorMessage = "The bundled dictionary could not be found."
             return
         }

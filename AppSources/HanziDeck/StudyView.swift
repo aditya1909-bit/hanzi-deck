@@ -1,4 +1,5 @@
 import SwiftData
+#if os(macOS)
 import SwiftUI
 
 struct StudyView: View {
@@ -206,7 +207,7 @@ struct StudyView: View {
     }
 
     private func contextLines(for character: CharacterCard) -> [String] {
-        let lines = character.contexts.compactMap { context -> String? in
+        let lines = character.sourceContexts.compactMap { context -> String? in
             guard let source = context.sourceWord else { return nil }
             return "\(context.pinyin) — \(source.hanzi)"
         }
@@ -287,3 +288,4 @@ private struct ReviewGradeButtonStyle: ButtonStyle {
             .clipShape(RoundedRectangle(cornerRadius: 9))
     }
 }
+#endif

@@ -38,8 +38,8 @@ enum StudySessionBuilder {
         kind: StudySessionKind,
         now: Date = .now
     ) -> StudyConfiguration {
-        let wordCards = selectWords(from: deck.wordCards, kind: kind, now: now)
-        let characterCards = selectCharacters(from: deck.characterCards, kind: kind, now: now)
+        let wordCards = selectWords(from: deck.words, kind: kind, now: now)
+        let characterCards = selectCharacters(from: deck.characters, kind: kind, now: now)
         let prompts: [StudyPrompt]
 
         switch method {
@@ -77,12 +77,12 @@ enum StudySessionBuilder {
     ) -> Int {
         switch method {
         case .hanziRecognition, .meaningRecall, .pinyinRecall:
-            selectWords(from: deck.wordCards, kind: kind, now: now).count
+            selectWords(from: deck.words, kind: kind, now: now).count
         case .characterContext:
-            selectCharacters(from: deck.characterCards, kind: kind, now: now).count
+            selectCharacters(from: deck.characters, kind: kind, now: now).count
         case .mixed:
-            selectWords(from: deck.wordCards, kind: kind, now: now).count
-                + selectCharacters(from: deck.characterCards, kind: kind, now: now).count
+            selectWords(from: deck.words, kind: kind, now: now).count
+                + selectCharacters(from: deck.characters, kind: kind, now: now).count
         }
     }
 

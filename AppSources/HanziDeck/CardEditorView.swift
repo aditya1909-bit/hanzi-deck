@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftData
 import SwiftUI
 
@@ -26,7 +27,7 @@ struct CardEditorView: View {
         _hanzi = State(initialValue: word?.hanzi ?? "")
         _pinyin = State(initialValue: word?.pinyin ?? "")
         _meaning = State(initialValue: word?.meaning ?? "")
-        let contexts = word?.characterContexts
+        let contexts = word?.contexts
             .sorted { $0.position < $1.position }
             .compactMap { context -> CharacterDraft? in
                 guard let glyph = context.characterCard?.glyph else { return nil }
@@ -262,3 +263,4 @@ struct CardEditorView: View {
         }
     }
 }
+#endif
