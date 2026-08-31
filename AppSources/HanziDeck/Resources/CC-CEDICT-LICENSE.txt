@@ -1,0 +1,21 @@
+CC-CEDICT
+Community maintained free Chinese-English dictionary.
+Published by MDBG.
+
+Bundled source release: 2026-08-31T08:09:35Z
+Source archive SHA-256:
+5dc61b731e80a5ada2706b7d43acdbbaabfa028601854459c978eda801284fe8
+
+Source:
+https://www.mdbg.net/chinese/dictionary?page=cc-cedict
+
+License:
+Creative Commons Attribution-ShareAlike 4.0 International
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Referenced work:
+CEDICT - Copyright (C) 1997, 1998 Paul Andrew Denisowski
+
+Changes made for this application:
+The published text data was mechanically converted into an indexed SQLite
+database. Definitions, written forms, and pinyin values are otherwise retained.
