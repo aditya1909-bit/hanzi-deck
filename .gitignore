@@ -1,0 +1,21 @@
+# macOS and editors
+.DS_Store
+.idea/
+.vscode/
+*.xcuserstate
+xcuserdata/
+
+# Swift and Xcode build output
+.build/
+.swiftpm/
+DerivedData/
+dist/
+
+# Local project context (not part of the app)
+AGENTS.md
+sources/
+
+# Temporary files
+*.tmp
+*.swp
+*~

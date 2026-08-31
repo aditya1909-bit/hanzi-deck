@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.swift text diff=swift
+*.sqlite binary
+*.plist text
+*.sh text eol=lf
