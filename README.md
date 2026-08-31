@@ -1,6 +1,6 @@
 # Hanzi Deck
 
-Hanzi Deck is a native, offline macOS flashcard app for learning Chinese words without losing sight of the individual characters inside them.
+Hanzi Deck is a native, offline-first macOS and iPhone flashcard app for learning Chinese words without losing sight of the individual characters inside them.
 
 Type a simplified or traditional Chinese word and the app fills in its tone-marked pinyin and English meaning from the bundled CC-CEDICT dictionary. You can also import screenshots or photos containing several words, review the OCR results, and create the cards together.
 
@@ -11,6 +11,12 @@ Type a simplified or traditional Chinese word and the app fills in its tone-mark
 Requires macOS 14 or newer. The download supports both Apple Silicon and Intel Macs. Open the disk image, then drag **Hanzi Deck** into **Applications**.
 
 The app is open source and currently ad-hoc signed rather than Apple-notarized. On first launch, macOS may ask you to approve it: open **System Settings → Privacy & Security**, find the Hanzi Deck message, and choose **Open Anyway**. This is only needed once.
+
+### iPhone app
+
+The native iOS 17+ app is included in `HanziDeckMobile.xcodeproj`. It has the same learning modes, schedulers, offline dictionary, screenshot import, and black-and-orange interface, with private iCloud deck sync for signed builds.
+
+Apple does not permit a generally installable unsigned iPhone download from GitHub. The project is ready for a public TestFlight link, the App Store, or an eligible Apple-approved alternative distribution route once the maintainer’s Apple Developer account is configured. See [iPhone distribution and iCloud setup](docs/IOS_DISTRIBUTION.md).
 
 ## Learning methods
 
@@ -37,8 +43,9 @@ The chosen algorithm controls the next scheduled review. Word and character prog
 
 ## Highlights
 
-- Native SwiftUI interface for macOS 14+
-- Device-local decks and review progress with SwiftData
+- Native SwiftUI interfaces for macOS 14+ and iOS 17+
+- Local-first decks and review progress with SwiftData
+- Private iCloud sync in signed mobile builds
 - Separate schedules for word and character mastery
 - Automatic, editable offline dictionary lookup
 - Offline screenshot and photo import using Apple Vision
@@ -72,6 +79,8 @@ Requirements:
 
 Open `Package.swift` in Xcode, select the `HanziDeck` scheme, choose **My Mac**, and run. The dictionary is included, so the app works without network access.
 
+For iPhone development, open `HanziDeckMobile.xcodeproj`, select your development team, choose an iPhone or simulator, and run the `HanziDeckMobile` scheme. A paid Apple Developer account and configured CloudKit container are required for device distribution and iCloud sync.
+
 ## Development
 
 ```bash
@@ -97,4 +106,4 @@ python3 Scripts/build_dictionary.py /path/to/cedict.txt.gz AppSources/HanziDeck/
 
 ## Privacy
 
-Hanzi Deck stores decks and progress only on the Mac running the app. OCR and dictionary lookup happen locally. The app does not send study content anywhere.
+OCR and dictionary lookup happen locally. The macOS direct download stores study data only on that Mac. Signed mobile builds use the learner’s private iCloud database to synchronize decks and review progress between their Apple devices; Hanzi Deck has no separate account, analytics service, or developer-operated study-data server.

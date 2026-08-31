@@ -6,8 +6,9 @@ Thanks for considering a contribution. Hanzi Deck is intentionally small and nat
 
 1. Fork and clone the repository.
 2. Open `Package.swift` in Xcode and run the `HanziDeck` scheme on **My Mac**.
-3. Run `swift test` before making changes.
-4. Create a focused branch and keep each commit limited to one coherent change.
+3. For iPhone changes, open `HanziDeckMobile.xcodeproj` and run the `HanziDeckMobile` scheme.
+4. Run `swift test` before making changes.
+5. Create a focused branch and keep each commit limited to one coherent change.
 
 The bundled dictionary is already present, so a normal build does not need network access.
 

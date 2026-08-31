@@ -27,6 +27,16 @@ jobs:
       - name: Run tests
         run: swift test
 
+      - name: Build iPhone app
+        run: |
+          xcodebuild \
+            -project HanziDeckMobile.xcodeproj \
+            -scheme HanziDeckMobile \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/HanziDeckMobileDerived" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
       - name: Build local app bundle
         run: ./Scripts/build_app.sh
 
