@@ -4,6 +4,14 @@ Hanzi Deck is a native, offline macOS flashcard app for learning Chinese words w
 
 Type a simplified or traditional Chinese word and the app fills in its tone-marked pinyin and English meaning from the bundled CC-CEDICT dictionary. You can also import screenshots or photos containing several words, review the OCR results, and create the cards together.
 
+## Download
+
+### [Download Hanzi Deck for macOS](https://github.com/aditya1909-bit/hanzi-deck/releases/latest/download/HanziDeck-macOS.dmg)
+
+Requires macOS 14 or newer. The download supports both Apple Silicon and Intel Macs. Open the disk image, then drag **Hanzi Deck** into **Applications**.
+
+The app is open source and currently ad-hoc signed rather than Apple-notarized. On first launch, macOS may ask you to approve it: open **System Settings → Privacy & Security**, find the Hanzi Deck message, and choose **Open Anyway**. This is only needed once.
+
 ## Learning methods
 
 Every deck supports five prompt styles:
@@ -40,20 +48,22 @@ The chosen algorithm controls the next scheduled review. Word and character prog
 - Full keyboard review controls and VoiceOver labels
 - No account, analytics, server, or runtime dependency
 
-## Install or run
+## Build or modify the app
 
-### Use the built app
-
-Download a build from the repository's Actions artifacts, or create a local app bundle:
+Clone the repository, then create the same local app bundle without installing dependencies:
 
 ```bash
 ./Scripts/build_app.sh
 open dist/HanziDeck.app
 ```
 
-The script produces an ad-hoc signed app for local use. Public notarized releases are not currently provided.
+To create the downloadable disk image and ZIP used by GitHub Releases:
 
-### Run in Xcode
+```bash
+./Scripts/package_release.sh
+```
+
+### Work in Xcode
 
 Requirements:
 

@@ -11,6 +11,8 @@ Thanks for considering a contribution. Hanzi Deck is intentionally small and nat
 
 The bundled dictionary is already present, so a normal build does not need network access.
 
+Maintainers publish a release by pushing a version tag such as `v1.0.0`. GitHub Actions tests the project and attaches a disk image, ZIP, and SHA-256 checksums to the permanent release page.
+
 ## Pull requests
 
 - Explain the learner-facing problem and the chosen behavior.
