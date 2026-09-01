@@ -45,6 +45,7 @@ The chosen algorithm controls the next scheduled review. Word and character prog
 
 - Native SwiftUI interfaces for macOS 14+ and iOS 17+
 - Local-first decks and review progress with SwiftData
+- Portable deck export and import with review progress preserved
 - Private iCloud sync on iPhone
 - Separate schedules for word and character mastery
 - Automatic, editable offline dictionary lookup

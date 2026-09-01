@@ -2,6 +2,7 @@
 import AppKit
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -12,10 +13,39 @@ struct ContentView: View {
     @State private var showingNewDeck = false
     @State private var showingAbout = false
     @State private var showingTutorial = false
+    @State private var deckSearchText = ""
+    @State private var deckToRename: Deck?
+    @State private var deckToDelete: Deck?
+    @State private var exportDocument: DeckTransferDocument?
+    @State private var exportFilename = "Hanzi Deck"
+    @State private var showingDeckExporter = false
+    @State private var showingDeckImporter = false
+    @State private var importErrorMessage: String?
     @AppStorage("hasCompletedWelcome") private var hasCompletedWelcome = false
+    @AppStorage("deckSortOrder") private var deckSortOrderRaw = DeckSortOrder.alphabetical.rawValue
 
     private var selectedDeck: Deck? {
         decks.first { $0.id == selectedDeckID }
+    }
+
+    private var organizedDecks: [Deck] {
+        let filtered = decks.filter {
+            deckSearchText.isEmpty || $0.name.localizedCaseInsensitiveContains(deckSearchText)
+        }
+        return switch DeckSortOrder(rawValue: deckSortOrderRaw) ?? .alphabetical {
+        case .alphabetical:
+            filtered.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        case .recentlyUpdated:
+            filtered.sorted { $0.updatedAt > $1.updatedAt }
+        case .mostDue:
+            filtered.sorted {
+                let leftDue = dueCount(for: $0)
+                let rightDue = dueCount(for: $1)
+                return leftDue == rightDue
+                    ? $0.name.localizedStandardCompare($1.name) == .orderedAscending
+                    : leftDue > rightDue
+            }
+        }
     }
 
     var body: some View {
@@ -24,14 +54,19 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 250, ideal: 280, max: 340)
         } detail: {
             if let selectedDeck {
-                DeckDetailView(deck: selectedDeck)
+                DeckDetailView(
+                    deck: selectedDeck,
+                    onRename: { deckToRename = selectedDeck },
+                    onExport: { export(selectedDeck) },
+                    onDelete: { deckToDelete = selectedDeck }
+                )
             } else {
                 emptyDetail
             }
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showingNewDeck) {
-            NewDeckView { name in
+            DeckNameView(title: "New Deck", initialName: "", actionTitle: "Create") { name in
                 let deck = Deck(name: name)
                 modelContext.insert(deck)
                 try? modelContext.save()
@@ -46,6 +81,46 @@ struct ContentView: View {
                 hasCompletedWelcome = true
                 showingTutorial = false
             }
+        }
+        .sheet(item: $deckToRename) { deck in
+            DeckNameView(title: "Rename Deck", initialName: deck.name, actionTitle: "Save") { name in
+                deck.name = name
+                deck.updatedAt = .now
+                try? modelContext.save()
+            }
+        }
+        .fileExporter(
+            isPresented: $showingDeckExporter,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: exportFilename
+        ) { _ in
+            exportDocument = nil
+        }
+        .fileImporter(
+            isPresented: $showingDeckImporter,
+            allowedContentTypes: [.json]
+        ) { result in
+            importDeck(from: result)
+        }
+        .alert("Delete Deck?", isPresented: Binding(
+            get: { deckToDelete != nil },
+            set: { if !$0 { deckToDelete = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { deckToDelete = nil }
+            Button("Delete", role: .destructive) {
+                if let deckToDelete { delete(deckToDelete) }
+            }
+        } message: {
+            Text("This permanently deletes the deck, its cards, and its review history.")
+        }
+        .alert("Couldn’t Import Deck", isPresented: Binding(
+            get: { importErrorMessage != nil },
+            set: { if !$0 { importErrorMessage = nil } }
+        )) {
+            Button("OK") { importErrorMessage = nil }
+        } message: {
+            Text(importErrorMessage ?? "The selected file could not be imported.")
         }
         .onReceive(NotificationCenter.default.publisher(for: .newDeckRequested)) { _ in
             showingNewDeck = true
@@ -74,6 +149,27 @@ struct ContentView: View {
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 Spacer()
+                Menu {
+                    Button {
+                        showingDeckImporter = true
+                    } label: {
+                        Label("Import Deck", systemImage: "square.and.arrow.down")
+                    }
+                    if let selectedDeck {
+                        Divider()
+                        Button("Rename \(selectedDeck.name)") { deckToRename = selectedDeck }
+                        Button("Export \(selectedDeck.name)") { export(selectedDeck) }
+                        Button("Delete \(selectedDeck.name)", role: .destructive) {
+                            deckToDelete = selectedDeck
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 18))
+                        .foregroundStyle(AppTheme.secondaryText)
+                }
+                .menuStyle(.borderlessButton)
+                .help("Deck options")
                 Button {
                     showingNewDeck = true
                 } label: {
@@ -107,21 +203,78 @@ struct ContentView: View {
                 .padding(28)
                 Spacer()
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 6) {
-                        ForEach(decks) { deck in
-                            DeckSidebarRow(deck: deck, isSelected: deck.id == selectedDeckID)
-                                .contentShape(Rectangle())
-                                .onTapGesture { selectedDeckID = deck.id }
-                                .accessibilityAddTraits(deck.id == selectedDeckID ? .isSelected : [])
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(AppTheme.secondaryText)
+                        TextField("Search decks", text: $deckSearchText)
+                            .textFieldStyle(.plain)
+                        Menu {
+                            ForEach(DeckSortOrder.allCases) { order in
+                                Button {
+                                    deckSortOrderRaw = order.rawValue
+                                } label: {
+                                    if deckSortOrderRaw == order.rawValue {
+                                        Label(order.title, systemImage: "checkmark")
+                                    } else {
+                                        Text(order.title)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                                .foregroundStyle(AppTheme.secondaryText)
+                        }
+                        .menuStyle(.borderlessButton)
+                        .help("Sort decks")
+                    }
+                    .padding(9)
+                    .background(AppTheme.elevatedSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 10)
+                    .padding(.top, 10)
+
+                    if organizedDecks.isEmpty {
+                        Text("No matching decks")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 6) {
+                                ForEach(organizedDecks) { deck in
+                                    DeckSidebarRow(deck: deck, isSelected: deck.id == selectedDeckID)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { selectedDeckID = deck.id }
+                                        .contextMenu {
+                                            Button("Rename") { deckToRename = deck }
+                                            Button("Export") { export(deck) }
+                                            Divider()
+                                            Button("Delete", role: .destructive) { deckToDelete = deck }
+                                        }
+                                        .accessibilityAddTraits(deck.id == selectedDeckID ? .isSelected : [])
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 10)
                         }
                     }
-                    .padding(10)
                 }
             }
 
             Divider().overlay(AppTheme.divider)
             VStack(spacing: 0) {
+                Button {
+                    showingDeckImporter = true
+                } label: {
+                    Label("Import Deck", systemImage: "square.and.arrow.down")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+
                 Button {
                     showingTutorial = true
                 } label: {
@@ -181,6 +334,58 @@ struct ContentView: View {
         }
         if changed {
             try? modelContext.save()
+        }
+    }
+
+    private func dueCount(for deck: Deck) -> Int {
+        deck.words.filter { ($0.reviewState?.dueAt ?? .distantFuture) <= .now }.count
+            + deck.characters.filter { ($0.reviewState?.dueAt ?? .distantFuture) <= .now }.count
+    }
+
+    private func export(_ deck: Deck) {
+        exportDocument = DeckTransferDocument(deck: deck)
+        let cleanName = deck.name.replacingOccurrences(of: "/", with: "-")
+        exportFilename = "\(cleanName).hanzideck.json"
+        showingDeckExporter = true
+    }
+
+    private func importDeck(from result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            let accessing = url.startAccessingSecurityScopedResource()
+            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+            let document = try DeckTransferDocument(data: Data(contentsOf: url))
+            let deck = try DeckTransferService.importDeck(
+                document.archive,
+                existingNames: Set(decks.map(\.name)),
+                context: modelContext
+            )
+            selectedDeckID = deck.id
+        } catch {
+            importErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func delete(_ deck: Deck) {
+        if selectedDeckID == deck.id { selectedDeckID = nil }
+        modelContext.delete(deck)
+        try? modelContext.save()
+        deckToDelete = nil
+    }
+}
+
+private enum DeckSortOrder: String, CaseIterable, Identifiable {
+    case alphabetical
+    case recentlyUpdated
+    case mostDue
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .alphabetical: "Name"
+        case .recentlyUpdated: "Recently Updated"
+        case .mostDue: "Most Due"
         }
     }
 }
@@ -302,14 +507,28 @@ private struct DeckSidebarRow: View {
     }
 }
 
-private struct NewDeckView: View {
+private struct DeckNameView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
+    @State private var name: String
+    let title: String
+    let actionTitle: String
     let onSave: (String) -> Void
+
+    init(
+        title: String,
+        initialName: String,
+        actionTitle: String,
+        onSave: @escaping (String) -> Void
+    ) {
+        self.title = title
+        self.actionTitle = actionTitle
+        self.onSave = onSave
+        _name = State(initialValue: initialName)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("New Deck")
+            Text(title)
                 .font(.title2.bold())
                 .foregroundStyle(AppTheme.primaryText)
             TextField("Deck name", text: $name)
@@ -319,7 +538,7 @@ private struct NewDeckView: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("Create", action: save)
+                Button(actionTitle, action: save)
                     .buttonStyle(OrangeButtonStyle())
                     .keyboardShortcut(.defaultAction)
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

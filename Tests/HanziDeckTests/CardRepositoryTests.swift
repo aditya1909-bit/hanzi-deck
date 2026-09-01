@@ -86,6 +86,30 @@ final class CardRepositoryTests: XCTestCase {
         XCTAssertEqual(deck.characters.count, 0)
     }
 
+    func testDeletingDeckCascadesItsCardsAndReviewData() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let deck = Deck(name: "Temporary")
+        context.insert(deck)
+        _ = try CardRepository.addWord(
+            to: deck,
+            hanzi: "学",
+            pinyin: "xué",
+            meaning: "to learn",
+            breakdown: [CharacterDraft(glyph: "学", pinyin: "xué", position: 0)],
+            context: context
+        )
+
+        context.delete(deck)
+        try context.save()
+
+        XCTAssertTrue(try context.fetch(FetchDescriptor<Deck>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<WordCard>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<CharacterCard>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<WordReviewState>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<CharacterReviewState>()).isEmpty)
+    }
+
     private func makeContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(

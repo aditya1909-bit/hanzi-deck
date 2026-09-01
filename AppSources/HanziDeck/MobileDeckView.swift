@@ -1,6 +1,7 @@
 #if os(iOS)
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct MobileDeckView: View {
     @Environment(\.modelContext) private var modelContext
@@ -12,6 +13,8 @@ struct MobileDeckView: View {
     @State private var showingImageImport = false
     @State private var studyConfiguration: StudyConfiguration?
     @State private var editingWord: WordCard?
+    @State private var exportDocument: DeckTransferDocument?
+    @State private var showingDeckExporter = false
 
     private var dueCount: Int {
         StudySessionBuilder.count(deck: deck, method: learningMethod, kind: .due)
@@ -50,6 +53,10 @@ struct MobileDeckView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
+                Button { exportDeck() } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel("Export this deck")
                 Button { showingImageImport = true } label: {
                     Image(systemName: "text.viewfinder")
                 }
@@ -71,6 +78,14 @@ struct MobileDeckView: View {
         }
         .fullScreenCover(item: $studyConfiguration) { configuration in
             MobileStudyView(configuration: configuration)
+        }
+        .fileExporter(
+            isPresented: $showingDeckExporter,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: exportFilename
+        ) { _ in
+            exportDocument = nil
         }
     }
 
@@ -194,6 +209,15 @@ struct MobileDeckView: View {
 
     private func delete(_ word: WordCard) {
         try? CardRepository.deleteWord(word, context: modelContext)
+    }
+
+    private var exportFilename: String {
+        "\(deck.name.replacingOccurrences(of: "/", with: "-")).hanzideck.json"
+    }
+
+    private func exportDeck() {
+        exportDocument = DeckTransferDocument(deck: deck)
+        showingDeckExporter = true
     }
 }
 

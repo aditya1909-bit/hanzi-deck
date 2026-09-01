@@ -24,15 +24,22 @@ METADATA_PREFIXES = (
     "pr. ",
 )
 
+HANZI_REFERENCE_PATTERN = re.compile(
+    r"\s*[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+"
+    r"(?:\|[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+)?\[[^]]+]"
+)
+
 
 def concise_meanings(definitions: str, limit: int = 3) -> str:
-    useful = (
-        definition.strip()
-        for definition in definitions.split("/")
-        if definition.strip()
-        and not definition.strip().lower().startswith(METADATA_PREFIXES)
-    )
-    return "; ".join(list(useful)[:limit])
+    useful: list[str] = []
+    for definition in definitions.split("/"):
+        clean_definition = definition.strip()
+        if not clean_definition or clean_definition.lower().startswith(METADATA_PREFIXES):
+            continue
+        clean_definition = HANZI_REFERENCE_PATTERN.sub("", clean_definition).strip()
+        if clean_definition:
+            useful.append(clean_definition)
+    return "; ".join(useful[:limit])
 
 
 def parse_line(line: str) -> tuple[str, str, str, str] | None:

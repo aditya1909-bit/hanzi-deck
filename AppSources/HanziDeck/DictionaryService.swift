@@ -52,14 +52,31 @@ enum CEDICTLineParser {
 }
 
 enum CEDICTDefinitionCleaner {
-    static func clean(_ rawMeaning: String, maximumDefinitions: Int = 3) -> String {
+    static func clean(
+        _ rawMeaning: String,
+        maximumDefinitions: Int = 3,
+        removingReferences: Bool = true
+    ) -> String {
         guard maximumDefinitions > 0 else { return "" }
         return rawMeaning
             .split(separator: ";")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && !isDictionaryMetadata($0) }
+            .map { removingReferences ? removeEmbeddedReference(from: $0) : $0 }
+            .filter { !$0.isEmpty }
             .prefix(maximumDefinitions)
             .joined(separator: "; ")
+    }
+
+    private static func removeEmbeddedReference(from definition: String) -> String {
+        definition
+            .replacingOccurrences(
+                of: #"\s*[\p{Han}]+(?:\|[\p{Han}]+)?\[[^\]]+\]"#,
+                with: "",
+                options: .regularExpression
+            )
+            .replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func isDictionaryMetadata(_ definition: String) -> Bool {
@@ -120,7 +137,12 @@ final class DictionaryService: ObservableObject {
 
     func cleanedMeaning(for hanzi: String, pinyin: String, storedMeaning: String) -> String? {
         guard let entry = lookup(hanzi).first(where: {
-            $0.displayPinyin == pinyin && $0.rawMeaning == storedMeaning
+            guard $0.displayPinyin == pinyin else { return false }
+            let previousAutomaticMeaning = CEDICTDefinitionCleaner.clean(
+                $0.rawMeaning,
+                removingReferences: false
+            )
+            return $0.rawMeaning == storedMeaning || previousAutomaticMeaning == storedMeaning
         }), entry.meaning != storedMeaning else {
             return nil
         }

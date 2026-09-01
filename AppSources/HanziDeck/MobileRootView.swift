@@ -1,13 +1,28 @@
 #if os(iOS)
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct MobileRootView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var dictionary: DictionaryService
     @Query(sort: \Deck.createdAt) private var decks: [Deck]
 
     @State private var showingNewDeck = false
     @State private var showingAbout = false
+    @State private var showingDeckImporter = false
+    @State private var deckToDelete: Deck?
+    @State private var importErrorMessage: String?
+    @State private var deckSearchText = ""
+
+    private var organizedDecks: [Deck] {
+        decks
+            .filter {
+                deckSearchText.isEmpty
+                    || $0.name.localizedCaseInsensitiveContains(deckSearchText)
+            }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
 
     var body: some View {
         NavigationStack {
@@ -17,15 +32,20 @@ struct MobileRootView: View {
                 } else {
                     List {
                         Section {
-                            ForEach(decks) { deck in
+                            ForEach(organizedDecks) { deck in
                                 NavigationLink {
                                     MobileDeckView(deck: deck)
                                 } label: {
                                     MobileDeckRow(deck: deck)
                                 }
                                 .listRowBackground(AppTheme.surface)
+                                .contextMenu {
+                                    Button("Delete Deck", role: .destructive) {
+                                        deckToDelete = deck
+                                    }
+                                }
                             }
-                            .onDelete(perform: deleteDecks)
+                            .onDelete(perform: requestDelete)
                         } header: {
                             Text("Your decks")
                                 .foregroundStyle(AppTheme.secondaryText)
@@ -36,12 +56,24 @@ struct MobileRootView: View {
             }
             .background(AppTheme.background)
             .navigationTitle("Hanzi Deck")
+            .searchable(text: $deckSearchText, prompt: "Search decks")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { showingAbout = true } label: {
-                        Image(systemName: "info.circle")
+                    Menu {
+                        Button {
+                            showingDeckImporter = true
+                        } label: {
+                            Label("Import Deck", systemImage: "square.and.arrow.down")
+                        }
+                        Button {
+                            showingAbout = true
+                        } label: {
+                            Label("About", systemImage: "info.circle")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
-                    .accessibilityLabel("About Hanzi Deck and iCloud sync")
+                    .accessibilityLabel("Deck and app options")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showingNewDeck = true } label: {
@@ -66,6 +98,32 @@ struct MobileRootView: View {
             .sheet(isPresented: $showingAbout) {
                 MobileAboutView()
             }
+            .fileImporter(
+                isPresented: $showingDeckImporter,
+                allowedContentTypes: [.json]
+            ) { result in
+                importDeck(from: result)
+            }
+            .alert("Delete Deck?", isPresented: Binding(
+                get: { deckToDelete != nil },
+                set: { if !$0 { deckToDelete = nil } }
+            )) {
+                Button("Cancel", role: .cancel) { deckToDelete = nil }
+                Button("Delete", role: .destructive) {
+                    if let deckToDelete { delete(deckToDelete) }
+                }
+            } message: {
+                Text("This permanently deletes the deck, its cards, and its review history.")
+            }
+            .alert("Couldn’t Import Deck", isPresented: Binding(
+                get: { importErrorMessage != nil },
+                set: { if !$0 { importErrorMessage = nil } }
+            )) {
+                Button("OK") { importErrorMessage = nil }
+            } message: {
+                Text(importErrorMessage ?? "The selected file could not be imported.")
+            }
+            .onAppear(perform: cleanPreviouslyImportedMeanings)
         }
         .tint(AppTheme.orange)
     }
@@ -83,9 +141,45 @@ struct MobileRootView: View {
         }
     }
 
-    private func deleteDecks(at offsets: IndexSet) {
-        for index in offsets { modelContext.delete(decks[index]) }
+    private func requestDelete(at offsets: IndexSet) {
+        deckToDelete = offsets.first.map { organizedDecks[$0] }
+    }
+
+    private func delete(_ deck: Deck) {
+        modelContext.delete(deck)
         try? modelContext.save()
+        deckToDelete = nil
+    }
+
+    private func importDeck(from result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            let accessing = url.startAccessingSecurityScopedResource()
+            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+            let document = try DeckTransferDocument(data: Data(contentsOf: url))
+            _ = try DeckTransferService.importDeck(
+                document.archive,
+                existingNames: Set(decks.map(\.name)),
+                context: modelContext
+            )
+        } catch {
+            importErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func cleanPreviouslyImportedMeanings() {
+        var changed = false
+        for word in decks.flatMap(\.words) {
+            if let cleaned = dictionary.cleanedMeaning(
+                for: word.hanzi,
+                pinyin: word.pinyin,
+                storedMeaning: word.meaning
+            ) {
+                word.meaning = cleaned
+                changed = true
+            }
+        }
+        if changed { try? modelContext.save() }
     }
 }
 

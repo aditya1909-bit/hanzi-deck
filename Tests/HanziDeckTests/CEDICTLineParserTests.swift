@@ -33,6 +33,24 @@ final class CEDICTLineParserTests: XCTestCase {
         XCTAssertEqual(pronunciationNote?.meaning, "to know; to become aware of")
     }
 
+    func testRemovesEmbeddedChineseAndNumberedPinyinReferences() {
+        let book = CEDICTLineParser.parse(
+            "大學 大学 [Da4 xue2] /the Great Learning, one of the Four Books 四書|四书[Si4 shu1] in Confucianism/"
+        )
+        XCTAssertEqual(
+            book?.meaning,
+            "the Great Learning, one of the Four Books in Confucianism"
+        )
+
+        let abbreviation = CEDICTLineParser.parse(
+            "新 新 [Xin1] /abbr. for Xinjiang 新疆[Xin1 jiang1]/abbr. for Singapore 新加坡[Xin1 jia1 po1]/surname Xin/"
+        )
+        XCTAssertEqual(
+            abbreviation?.meaning,
+            "abbr. for Xinjiang; abbr. for Singapore; surname Xin"
+        )
+    }
+
     func testExtractsChineseRunsFromOCRText() {
         XCTAssertEqual("1. 学习  xue2 xi2".hanIdeographRuns, ["学习"])
         XCTAssertEqual("銀行, 旅行 / vocabulary".hanIdeographRuns, ["銀行", "旅行"])

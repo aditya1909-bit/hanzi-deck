@@ -5,6 +5,9 @@ import SwiftUI
 struct DeckDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var deck: Deck
+    let onRename: () -> Void
+    let onExport: () -> Void
+    let onDelete: () -> Void
 
     @State private var mode: StudyMode = .word
     @State private var learningMethod: LearningMethod = .hanziRecognition
@@ -94,6 +97,16 @@ struct DeckDetailView: View {
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 Spacer()
+                Menu {
+                    Button("Rename Deck", action: onRename)
+                    Button("Export Deck", action: onExport)
+                    Divider()
+                    Button("Delete Deck", role: .destructive, action: onDelete)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .menuStyle(.borderlessButton)
+                .help("Deck options")
                 Button {
                     showingImageImport = true
                 } label: {
