@@ -19,7 +19,8 @@ jobs:
       - name: Run tests
         run: swift test
 
-      - name: Verify signing configuration
+      - name: Select release signing mode
+        id: signing
         env:
           MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -28,14 +29,20 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
         run: |
-          test -n "$MACOS_CERTIFICATE_P12"
-          test -n "$MACOS_CERTIFICATE_PASSWORD"
-          test -n "$MACOS_SIGNING_IDENTITY"
-          test -n "$ASC_ISSUER_ID"
-          test -n "$ASC_KEY_ID"
-          test -n "$ASC_PRIVATE_KEY"
+          if [[ -n "$MACOS_CERTIFICATE_P12" && \
+                -n "$MACOS_CERTIFICATE_PASSWORD" && \
+                -n "$MACOS_SIGNING_IDENTITY" && \
+                -n "$ASC_ISSUER_ID" && \
+                -n "$ASC_KEY_ID" && \
+                -n "$ASC_PRIVATE_KEY" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No complete Developer ID configuration; publishing an ad-hoc signed build."
+          fi
 
       - name: Install temporary signing credentials
+        if: steps.signing.outputs.enabled == 'true'
         env:
           MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -61,12 +68,17 @@ jobs:
             "$RUNNER_TEMP/hanzi-signing.keychain-db"
           security list-keychains -d user -s "$RUNNER_TEMP/hanzi-signing.keychain-db"
 
-      - name: Package downloads
+      - name: Package signed downloads
+        if: steps.signing.outputs.enabled == 'true'
         env:
           HANZI_DECK_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
           NOTARY_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           NOTARY_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           NOTARY_KEY_PATH: ${{ runner.temp }}/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+        run: ./Scripts/package_release.sh
+
+      - name: Package ad-hoc signed downloads
+        if: steps.signing.outputs.enabled != 'true'
         run: ./Scripts/package_release.sh
 
       - name: Publish GitHub release

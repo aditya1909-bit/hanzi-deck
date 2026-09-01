@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var selectedDeckID: UUID?
     @State private var showingNewDeck = false
     @State private var showingAbout = false
+    @State private var showingTutorial = false
+    @AppStorage("hasCompletedWelcome") private var hasCompletedWelcome = false
 
     private var selectedDeck: Deck? {
         decks.first { $0.id == selectedDeckID }
@@ -38,8 +40,19 @@ struct ContentView: View {
         .sheet(isPresented: $showingAbout) {
             AboutView()
         }
+        .sheet(isPresented: $showingTutorial) {
+            WelcomeView {
+                hasCompletedWelcome = true
+                showingTutorial = false
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .newDeckRequested)) { _ in
             showingNewDeck = true
+        }
+        .onAppear {
+            if !hasCompletedWelcome {
+                showingTutorial = true
+            }
         }
     }
 
@@ -106,15 +119,30 @@ struct ContentView: View {
             }
 
             Divider().overlay(AppTheme.divider)
-            Button {
-                showingAbout = true
-            } label: {
-                Label("About & Dictionary", systemImage: "info.circle")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .padding(14)
+            VStack(spacing: 0) {
+                Button {
+                    showingTutorial = true
+                } label: {
+                    Label("How to Use", systemImage: "questionmark.circle")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    showingAbout = true
+                } label: {
+                    Label("About & Dictionary", systemImage: "info.circle")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .padding(.vertical, 6)
         }
         .background(AppTheme.surface)
     }
@@ -135,6 +163,86 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
+    }
+}
+
+private struct WelcomeView: View {
+    let onFinish: () -> Void
+
+    var body: some View {
+        VStack(spacing: 22) {
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 88, height: 88)
+                .accessibilityHidden(true)
+
+            VStack(spacing: 6) {
+                Text("Welcome to Hanzi Deck")
+                    .font(.title.bold())
+                    .foregroundStyle(AppTheme.primaryText)
+                Text("Your Chinese study space, ready in three steps.")
+                    .foregroundStyle(AppTheme.secondaryText)
+            }
+
+            VStack(spacing: 12) {
+                TutorialStep(
+                    number: "1",
+                    title: "Create a deck",
+                    detail: "Keep words together by class, topic, or textbook."
+                )
+                TutorialStep(
+                    number: "2",
+                    title: "Add Chinese words",
+                    detail: "Type a word for automatic pinyin and meaning, or import many words from a screenshot."
+                )
+                TutorialStep(
+                    number: "3",
+                    title: "Study your way",
+                    detail: "Use Study Due for scheduled reviews or Free Practice whenever you want. Switch methods and character mode inside each deck."
+                )
+            }
+
+            Text("During study: Space reveals the answer • 1–4 rates it • Escape exits")
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryText)
+
+            Button("Get Started", action: onFinish)
+                .buttonStyle(OrangeButtonStyle())
+                .keyboardShortcut(.defaultAction)
+        }
+        .padding(32)
+        .frame(width: 560)
+        .background(AppTheme.background)
+    }
+}
+
+private struct TutorialStep: View {
+    let number: String
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Text(number)
+                .font(.headline)
+                .foregroundStyle(Color.black)
+                .frame(width: 32, height: 32)
+                .background(AppTheme.orange)
+                .clipShape(Circle())
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .darkPanel()
+        .accessibilityElement(children: .combine)
     }
 }
 

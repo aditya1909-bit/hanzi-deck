@@ -1,3 +1,4 @@
+import Foundation
 import SwiftData
 
 enum ModelContainerFactory {
@@ -16,10 +17,31 @@ enum ModelContainerFactory {
         let cloudDatabase: ModelConfiguration.CloudKitDatabase = cloudSyncEnabled
             ? .private(cloudContainerIdentifier)
             : .none
+#if os(macOS)
+        let applicationSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0]
+        let storeDirectory = applicationSupport.appending(
+            path: "HanziDeck",
+            directoryHint: .isDirectory
+        )
+        try FileManager.default.createDirectory(
+            at: storeDirectory,
+            withIntermediateDirectories: true
+        )
+        let configuration = ModelConfiguration(
+            "HanziDeck",
+            schema: schema,
+            url: storeDirectory.appending(path: "HanziDeck.store"),
+            cloudKitDatabase: cloudDatabase
+        )
+#else
         let configuration = ModelConfiguration(
             schema: schema,
             cloudKitDatabase: cloudDatabase
         )
+#endif
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 }
