@@ -25,5 +25,18 @@ if [[ ! -d "$RESOURCE_BUNDLE" ]]; then
 fi
 cp -R "$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/"
 
-codesign --force --sign - "$APP_DIR"
+xcrun actool "$PROJECT_DIR/AppSources/HanziDeck/Assets.xcassets" \
+    --compile "$APP_DIR/Contents/Resources" \
+    --platform macosx \
+    --minimum-deployment-target 14.0 \
+    --app-icon MacAppIcon \
+    --output-partial-info-plist "$OUTPUT_ROOT/MacAppIcon-Info.plist" \
+    >/dev/null
+
+SIGNING_IDENTITY="${HANZI_DECK_SIGNING_IDENTITY:--}"
+if [[ "$SIGNING_IDENTITY" == "-" ]]; then
+    codesign --force --sign - "$APP_DIR"
+else
+    codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" "$APP_DIR"
+fi
 print "$APP_DIR"

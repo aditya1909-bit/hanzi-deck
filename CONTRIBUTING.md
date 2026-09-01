@@ -12,7 +12,7 @@ Thanks for considering a contribution. Hanzi Deck is intentionally small and nat
 
 The bundled dictionary is already present, so a normal build does not need network access.
 
-Maintainers publish a release by pushing a version tag such as `v1.0.0`. GitHub Actions tests the project and attaches a disk image, ZIP, and SHA-256 checksums to the permanent release page.
+Maintainers publish a release by pushing a version tag such as `v1.0.0`. GitHub Actions tests the project, requires Developer ID signing and notarization, then attaches a disk image, ZIP, and SHA-256 checksums to the permanent release page. See [macOS release signing](docs/MACOS_DISTRIBUTION.md) for the required secrets.
 
 ## Pull requests
 

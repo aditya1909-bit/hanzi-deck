@@ -10,7 +10,7 @@ Type a simplified or traditional Chinese word and the app fills in its tone-mark
 
 Requires macOS 14 or newer. The download supports both Apple Silicon and Intel Macs. Open the disk image, then drag **Hanzi Deck** into **Applications**.
 
-The app is open source and currently ad-hoc signed rather than Apple-notarized. On first launch, macOS may ask you to approve it: open **System Settings → Privacy & Security**, find the Hanzi Deck message, and choose **Open Anyway**. This is only needed once.
+The current download is open source and ad-hoc signed. On first launch, macOS may ask you to approve it: open **System Settings → Privacy & Security**, find the Hanzi Deck message, and choose **Open Anyway**. Future tagged releases are configured to require Developer ID signing and Apple notarization so this extra approval is no longer necessary.
 
 ### iPhone app
 
@@ -69,6 +69,8 @@ To create the downloadable disk image and ZIP used by GitHub Releases:
 ```bash
 ./Scripts/package_release.sh
 ```
+
+Maintainers can follow [macOS release signing](docs/MACOS_DISTRIBUTION.md) to publish a notarized download.
 
 ### Work in Xcode
 

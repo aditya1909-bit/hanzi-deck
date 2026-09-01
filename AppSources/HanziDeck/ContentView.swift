@@ -1,4 +1,5 @@
 #if os(macOS)
+import AppKit
 import SwiftData
 import SwiftUI
 
@@ -45,6 +46,10 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(spacing: 0) {
             HStack {
+                Image(nsImage: NSApplication.shared.applicationIconImage)
+                    .resizable()
+                    .frame(width: 38, height: 38)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("HANZI DECK")
                         .font(.system(size: 17, weight: .bold, design: .rounded))
@@ -116,9 +121,10 @@ struct ContentView: View {
 
     private var emptyDetail: some View {
         VStack(spacing: 14) {
-            Text("字")
-                .font(.system(size: 96, weight: .semibold))
-                .foregroundStyle(AppTheme.orange)
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 112, height: 112)
+                .accessibilityLabel("Hanzi Deck logo")
             Text("Learn words. Know every character.")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(AppTheme.primaryText)

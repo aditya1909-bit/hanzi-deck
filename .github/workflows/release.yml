@@ -19,7 +19,54 @@ jobs:
       - name: Run tests
         run: swift test
 
+      - name: Verify signing configuration
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          test -n "$MACOS_CERTIFICATE_P12"
+          test -n "$MACOS_CERTIFICATE_PASSWORD"
+          test -n "$MACOS_SIGNING_IDENTITY"
+          test -n "$ASC_ISSUER_ID"
+          test -n "$ASC_KEY_ID"
+          test -n "$ASC_PRIVATE_KEY"
+
+      - name: Install temporary signing credentials
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          umask 077
+          printf '%s' "$MACOS_CERTIFICATE_P12" | base64 -D > "$RUNNER_TEMP/DeveloperID.p12"
+          printf '%s' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          security create-keychain -p temporary-password "$RUNNER_TEMP/hanzi-signing.keychain-db"
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/hanzi-signing.keychain-db"
+          security unlock-keychain -p temporary-password "$RUNNER_TEMP/hanzi-signing.keychain-db"
+          security import "$RUNNER_TEMP/DeveloperID.p12" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$RUNNER_TEMP/hanzi-signing.keychain-db"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k temporary-password \
+            "$RUNNER_TEMP/hanzi-signing.keychain-db"
+          security list-keychains -d user -s "$RUNNER_TEMP/hanzi-signing.keychain-db"
+
       - name: Package downloads
+        env:
+          HANZI_DECK_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          NOTARY_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          NOTARY_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          NOTARY_KEY_PATH: ${{ runner.temp }}/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
         run: ./Scripts/package_release.sh
 
       - name: Publish GitHub release

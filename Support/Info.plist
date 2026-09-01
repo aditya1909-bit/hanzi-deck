@@ -12,6 +12,10 @@
     <string>com.local.HanziDeck</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
+    <key>CFBundleIconFile</key>
+    <string>MacAppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>MacAppIcon</string>
     <key>CFBundleName</key>
     <string>HanziDeck</string>
     <key>CFBundlePackageType</key>

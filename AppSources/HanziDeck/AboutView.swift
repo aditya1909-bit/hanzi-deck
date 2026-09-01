@@ -1,4 +1,5 @@
 #if os(macOS)
+import AppKit
 import SwiftUI
 
 struct AboutView: View {
@@ -14,9 +15,10 @@ struct AboutView: View {
                     .accessibilityLabel("Close About")
             }
 
-            Text("字")
-                .font(.system(size: 72, weight: .bold))
-                .foregroundStyle(AppTheme.orange)
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 96, height: 96)
+                .accessibilityLabel("Hanzi Deck logo")
             Text("Hanzi Deck")
                 .font(.title.bold())
                 .foregroundStyle(AppTheme.primaryText)
