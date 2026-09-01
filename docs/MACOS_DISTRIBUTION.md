@@ -1,8 +1,17 @@
 # macOS release signing
 
-Tagged releases are built as universal Apple Silicon and Intel apps, signed with Developer ID, submitted to Apple for notarization, stapled, and packaged as a drag-to-Applications disk image.
+Tagged releases produce a universal Apple Silicon and Intel app, a drag-to-Applications disk image, a ZIP archive, and SHA-256 checksums.
 
-Configure these encrypted GitHub Actions secrets before pushing a release tag:
+The release workflow supports two signing modes:
+
+- With Developer ID credentials, the app and disk image are signed, notarized, and stapled.
+- Without Developer ID credentials, the workflow publishes an ad-hoc-signed open-source build.
+
+Developer ID signing is recommended for the smoothest first-launch experience.
+
+## Developer ID configuration
+
+Add these encrypted GitHub Actions secrets to enable signing and notarization:
 
 - `MACOS_CERTIFICATE_P12`: base64-encoded Developer ID Application certificate and private key
 - `MACOS_CERTIFICATE_PASSWORD`: password used when exporting the `.p12`
@@ -11,13 +20,11 @@ Configure these encrypted GitHub Actions secrets before pushing a release tag:
 - `ASC_KEY_ID`: App Store Connect API key ID
 - `ASC_PRIVATE_KEY`: complete contents of the corresponding `.p8` key
 
-The release workflow intentionally stops if any signing value is absent. This prevents an unsigned public download from replacing a notarized release.
-
-To publish:
+## Publishing a release
 
 1. Update `CFBundleShortVersionString` and `CFBundleVersion` in `Support/Info.plist`.
 2. Commit and push the version change.
 3. Create and push a matching tag, such as `v1.1.0`.
 4. Confirm that **Publish macOS release** succeeds before sharing the download link.
 
-Local contributors do not need signing credentials. `Scripts/build_app.sh` continues to create an ad-hoc-signed local app when `HANZI_DECK_SIGNING_IDENTITY` is not set.
+Local builds use ad-hoc signing by default. Set `HANZI_DECK_SIGNING_IDENTITY` when testing with a Developer ID Application certificate.

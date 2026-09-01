@@ -2,7 +2,7 @@
 
 ## Supported version
 
-Security fixes are made on the latest `main` branch. Hanzi Deck is local-only and does not operate a server, account system, or cloud database.
+Security fixes are made on the latest `main` branch. Hanzi Deck has no account system or developer-operated backend. The macOS app stores decks locally, and the iPhone app can use the learner’s private iCloud database for synchronization.
 
 ## Reporting a vulnerability
 
