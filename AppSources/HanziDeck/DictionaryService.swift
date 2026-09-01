@@ -6,9 +6,10 @@ struct DictionaryEntry: Identifiable, Hashable {
     let traditional: String
     let simplified: String
     let numberedPinyin: String
-    let meaning: String
+    let rawMeaning: String
 
     var displayPinyin: String { PinyinConverter.toneMarked(numberedPinyin) }
+    var meaning: String { CEDICTDefinitionCleaner.clean(rawMeaning) }
 }
 
 struct ParsedCEDICTEntry: Equatable {
@@ -38,14 +39,37 @@ enum CEDICTLineParser {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: "; ")
+        let meaning = CEDICTDefinitionCleaner.clean(definitions)
 
-        guard !definitions.isEmpty else { return nil }
+        guard !meaning.isEmpty else { return nil }
         return ParsedCEDICTEntry(
             traditional: String(head[0]),
             simplified: String(head[1]),
             pinyin: String(pinyin),
-            meaning: definitions
+            meaning: meaning
         )
+    }
+}
+
+enum CEDICTDefinitionCleaner {
+    static func clean(_ rawMeaning: String, maximumDefinitions: Int = 3) -> String {
+        guard maximumDefinitions > 0 else { return "" }
+        return rawMeaning
+            .split(separator: ";")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && !isDictionaryMetadata($0) }
+            .prefix(maximumDefinitions)
+            .joined(separator: "; ")
+    }
+
+    private static func isDictionaryMetadata(_ definition: String) -> Bool {
+        let normalized = definition.lowercased()
+        return normalized.hasPrefix("cl:")
+            || normalized.hasPrefix("classifier:")
+            || normalized.hasPrefix("also pr.")
+            || normalized.hasPrefix("also pronounced")
+            || normalized.hasPrefix("taiwan pr.")
+            || normalized.hasPrefix("pr. ")
     }
 }
 
@@ -87,11 +111,20 @@ final class DictionaryService: ObservableObject {
                     traditional: string(statement, column: 1),
                     simplified: string(statement, column: 2),
                     numberedPinyin: string(statement, column: 3),
-                    meaning: string(statement, column: 4)
+                    rawMeaning: string(statement, column: 4)
                 )
             )
         }
         return entries
+    }
+
+    func cleanedMeaning(for hanzi: String, pinyin: String, storedMeaning: String) -> String? {
+        guard let entry = lookup(hanzi).first(where: {
+            $0.displayPinyin == pinyin && $0.rawMeaning == storedMeaning
+        }), entry.meaning != storedMeaning else {
+            return nil
+        }
+        return entry.meaning
     }
 
     func characterDrafts(for hanzi: String, entry: DictionaryEntry?) -> [CharacterDraft] {

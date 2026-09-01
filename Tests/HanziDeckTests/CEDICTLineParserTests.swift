@@ -21,6 +21,18 @@ final class CEDICTLineParserTests: XCTestCase {
         XCTAssertNil(CEDICTLineParser.parse("學習 学习 [xue2 xi2] //"))
     }
 
+    func testKeepsMeaningsConciseAndRemovesDictionaryMetadata() {
+        let entry = CEDICTLineParser.parse(
+            "事業 事业 [shi4 ye4] /undertaking/project/activity/cause/institution/career/occupation/CL:個|个[ge4]/"
+        )
+        XCTAssertEqual(entry?.meaning, "undertaking; project; activity")
+
+        let pronunciationNote = CEDICTLineParser.parse(
+            "知道 知道 [zhi1 dao5] /to know/to become aware of/also pr. [zhi1 dao5]/"
+        )
+        XCTAssertEqual(pronunciationNote?.meaning, "to know; to become aware of")
+    }
+
     func testExtractsChineseRunsFromOCRText() {
         XCTAssertEqual("1. 学习  xue2 xi2".hanIdeographRuns, ["学习"])
         XCTAssertEqual("銀行, 旅行 / vocabulary".hanIdeographRuns, ["銀行", "旅行"])

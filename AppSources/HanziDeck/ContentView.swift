@@ -5,6 +5,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var dictionary: DictionaryService
     @Query(sort: \Deck.createdAt) private var decks: [Deck]
 
     @State private var selectedDeckID: UUID?
@@ -50,6 +51,7 @@ struct ContentView: View {
             showingNewDeck = true
         }
         .onAppear {
+            cleanPreviouslyImportedMeanings()
             if !hasCompletedWelcome {
                 showingTutorial = true
             }
@@ -163,6 +165,23 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
+    }
+
+    private func cleanPreviouslyImportedMeanings() {
+        var changed = false
+        for word in decks.flatMap(\.words) {
+            if let cleaned = dictionary.cleanedMeaning(
+                for: word.hanzi,
+                pinyin: word.pinyin,
+                storedMeaning: word.meaning
+            ) {
+                word.meaning = cleaned
+                changed = true
+            }
+        }
+        if changed {
+            try? modelContext.save()
+        }
     }
 }
 

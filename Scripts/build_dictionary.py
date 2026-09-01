@@ -15,6 +15,25 @@ ENTRY_PATTERN = re.compile(
     r"\[(?P<pinyin>[^]]+)]\s+/(?P<definitions>.*)/$"
 )
 
+METADATA_PREFIXES = (
+    "cl:",
+    "classifier:",
+    "also pr.",
+    "also pronounced",
+    "taiwan pr.",
+    "pr. ",
+)
+
+
+def concise_meanings(definitions: str, limit: int = 3) -> str:
+    useful = (
+        definition.strip()
+        for definition in definitions.split("/")
+        if definition.strip()
+        and not definition.strip().lower().startswith(METADATA_PREFIXES)
+    )
+    return "; ".join(list(useful)[:limit])
+
 
 def parse_line(line: str) -> tuple[str, str, str, str] | None:
     stripped = line.strip()
@@ -25,11 +44,7 @@ def parse_line(line: str) -> tuple[str, str, str, str] | None:
     if not match:
         return None
 
-    meanings = "; ".join(
-        definition.strip()
-        for definition in match.group("definitions").split("/")
-        if definition.strip()
-    )
+    meanings = concise_meanings(match.group("definitions"))
     if not meanings:
         return None
 
