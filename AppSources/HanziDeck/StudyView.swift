@@ -39,7 +39,7 @@ struct StudyView: View {
                     .font(.headline)
                     .foregroundStyle(AppTheme.primaryText)
                 Text(
-                    "\(configuration.method.title) · \(configuration.sessionKind.title) · \(configuration.schedulerAlgorithm.title)"
+                    "\(configuration.sessionKind.title) · \(configuration.method.title)"
                 )
                     .font(.caption)
                     .foregroundStyle(

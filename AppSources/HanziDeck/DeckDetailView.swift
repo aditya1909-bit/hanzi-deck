@@ -15,6 +15,7 @@ struct DeckDetailView: View {
     @State private var editingWord: WordCard?
     @State private var showingAddCard = false
     @State private var showingImageImport = false
+    @State private var showingStudySettings = false
     @State private var studyConfiguration: StudyConfiguration?
     @State private var deleteTarget: WordCard?
 
@@ -63,6 +64,9 @@ struct DeckDetailView: View {
         .sheet(isPresented: $showingImageImport) {
             ImageImportView(deck: deck)
         }
+        .popover(isPresented: $showingStudySettings, arrowEdge: .top) {
+            studySettings
+        }
         .sheet(item: $editingWord) { word in
             CardEditorView(deck: deck, word: word)
         }
@@ -100,6 +104,7 @@ struct DeckDetailView: View {
                 Menu {
                     Button("Rename Deck", action: onRename)
                     Button("Export Deck", action: onExport)
+                    Button("Import from Images", action: { showingImageImport = true })
                     Divider()
                     Button("Delete Deck", role: .destructive, action: onDelete)
                 } label: {
@@ -107,12 +112,6 @@ struct DeckDetailView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .help("Deck options")
-                Button {
-                    showingImageImport = true
-                } label: {
-                    Label("Import Images", systemImage: "text.viewfinder")
-                }
-                .accessibilityLabel("Import Chinese words from images or screenshots")
                 Button {
                     showingAddCard = true
                 } label: {
@@ -155,66 +154,31 @@ struct DeckDetailView: View {
     }
 
     private var studyControls: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 14) {
-                Label("Learning method", systemImage: learningMethod.symbol)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppTheme.secondaryText)
+        HStack(spacing: 16) {
+            Image(systemName: learningMethod.symbol)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(AppTheme.orange)
+                .frame(width: 32, height: 32)
 
-                Picker("Learning method", selection: $learningMethod) {
-                    ForEach(LearningMethod.allCases) { method in
-                        Text(method.title).tag(method)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 220)
-
-                Text(learningMethod.shortDescription)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(dueCount == 0 ? "You’re caught up" : "\(dueCount) card\(dueCount == 1 ? "" : "s") due")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(learningMethod.title)
                     .font(.caption)
                     .foregroundStyle(AppTheme.secondaryText)
-                Spacer()
             }
 
-            HStack(spacing: 14) {
-                Label("Scheduler", systemImage: "calendar.badge.clock")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppTheme.secondaryText)
+            Spacer()
 
-                Picker("Scheduler", selection: schedulerSelection) {
-                    ForEach(SchedulerAlgorithm.allCases) { algorithm in
-                        Text(algorithm.title).tag(algorithm)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 220)
-
-                Text(deck.schedulerAlgorithm.description)
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.secondaryText)
-
-                if deck.schedulerAlgorithm == .fsrs6 {
-                    Spacer()
-                    Text("Target \(deck.desiredRetention, format: .percent.precision(.fractionLength(0)))")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(AppTheme.primaryText)
-                    Slider(value: retentionSelection, in: 0.70...0.97, step: 0.01)
-                        .frame(width: 130)
-                        .accessibilityLabel("FSRS target retention")
-                } else {
-                    Spacer()
-                }
+            Button(dueCount == 0 ? "Practice" : "Study") {
+                beginStudy(dueCount == 0 ? .freePractice : .due)
             }
+            .buttonStyle(OrangeButtonStyle())
+            .disabled(sessionCount(dueCount == 0 ? .freePractice : .due) == 0)
 
-            HStack(spacing: 12) {
-                Button("Study This Deck · \(dueCount) Due") {
-                    beginStudy(.due)
-                }
-                .buttonStyle(OrangeButtonStyle())
-                .disabled(dueCount == 0)
-
-                Menu {
+            Menu {
+                Section("Sessions") {
                     ForEach(StudySessionKind.allCases) { kind in
                         Button {
                             beginStudy(kind)
@@ -223,20 +187,59 @@ struct DeckDetailView: View {
                         }
                         .disabled(sessionCount(kind) == 0)
                     }
-                } label: {
-                    Label("Choose Session", systemImage: "chevron.down")
                 }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-
-                Text("Cram, Difficult, and Free Practice never alter due dates.")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.secondaryText)
-                Spacer()
+                Divider()
+                Button("Study Settings…") { showingStudySettings = true }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 17))
             }
+            .menuStyle(.borderlessButton)
+            .help("More study options")
         }
         .padding(16)
         .darkPanel()
+    }
+
+    private var studySettings: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Study Settings")
+                .font(.headline)
+
+            Picker("Method", selection: $learningMethod) {
+                ForEach(LearningMethod.allCases) { method in
+                    Text(method.title).tag(method)
+                }
+            }
+
+            Text(learningMethod.shortDescription)
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryText)
+
+            Divider()
+
+            Picker("Scheduler", selection: schedulerSelection) {
+                ForEach(SchedulerAlgorithm.allCases) { algorithm in
+                    Text(algorithm.title).tag(algorithm)
+                }
+            }
+
+            Text(deck.schedulerAlgorithm.description)
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryText)
+
+            if deck.schedulerAlgorithm == .fsrs6 {
+                HStack {
+                    Text("Target retention")
+                    Slider(value: retentionSelection, in: 0.70...0.97, step: 0.01)
+                    Text(deck.desiredRetention, format: .percent.precision(.fractionLength(0)))
+                        .monospacedDigit()
+                        .frame(width: 42, alignment: .trailing)
+                }
+            }
+        }
+        .padding(20)
+        .frame(width: 390)
     }
 
     private var schedulerSelection: Binding<SchedulerAlgorithm> {

@@ -48,7 +48,7 @@ struct MobileStudyView: View {
 
     private func studyCard(_ prompt: StudyPrompt) -> some View {
         VStack(spacing: 24) {
-            Text("\(configuration.method.title) · \(configuration.schedulerAlgorithm.title)")
+            Text(configuration.sessionKind.title)
                 .font(.caption)
                 .foregroundStyle(AppTheme.secondaryText)
 

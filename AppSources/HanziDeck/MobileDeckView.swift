@@ -11,6 +11,7 @@ struct MobileDeckView: View {
     @State private var learningMethod: LearningMethod = .hanziRecognition
     @State private var showingAddWord = false
     @State private var showingImageImport = false
+    @State private var showingStudySettings = false
     @State private var studyConfiguration: StudyConfiguration?
     @State private var editingWord: WordCard?
     @State private var exportDocument: DeckTransferDocument?
@@ -52,15 +53,20 @@ struct MobileDeckView: View {
         .navigationTitle(deck.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button { exportDeck() } label: {
-                    Image(systemName: "square.and.arrow.up")
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("Import from Photos", systemImage: "text.viewfinder") {
+                        showingImageImport = true
+                    }
+                    Button("Export Deck", systemImage: "square.and.arrow.up") {
+                        exportDeck()
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
-                .accessibilityLabel("Export this deck")
-                Button { showingImageImport = true } label: {
-                    Image(systemName: "text.viewfinder")
-                }
-                .accessibilityLabel("Import Chinese words from photos")
+                .accessibilityLabel("Deck options")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { showingAddWord = true } label: {
                     Image(systemName: "plus")
                 }
@@ -75,6 +81,9 @@ struct MobileDeckView: View {
         }
         .sheet(isPresented: $showingImageImport) {
             MobileImageImportView(deck: deck)
+        }
+        .sheet(isPresented: $showingStudySettings) {
+            studySettings
         }
         .fullScreenCover(item: $studyConfiguration) { configuration in
             MobileStudyView(configuration: configuration)
@@ -102,78 +111,105 @@ struct MobileDeckView: View {
     }
 
     private var studyPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Label("Study", systemImage: learningMethod.symbol)
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.primaryText)
-                Spacer()
-                Menu(learningMethod.title) {
-                    ForEach(LearningMethod.allCases) { method in
-                        Button(method.title) { learningMethod = method }
-                    }
-                }
-            }
-
-            Text(learningMethod.shortDescription)
-                .font(.caption)
-                .foregroundStyle(AppTheme.secondaryText)
-
-            HStack {
-                Menu {
-                    ForEach(SchedulerAlgorithm.allCases) { algorithm in
-                        Button(algorithm.title) {
-                            deck.schedulerAlgorithm = algorithm
-                            persistDeckSettings()
-                        }
-                    }
-                } label: {
-                    Label(deck.schedulerAlgorithm.title, systemImage: "calendar.badge.clock")
-                }
-                Spacer()
-                if deck.schedulerAlgorithm == .fsrs6 {
-                    Text("\(deck.desiredRetention, format: .percent.precision(.fractionLength(0))) target")
-                        .font(.caption.monospacedDigit())
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: learningMethod.symbol)
+                    .font(.title3)
+                    .foregroundStyle(AppTheme.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(dueCount == 0 ? "You’re caught up" : "\(dueCount) card\(dueCount == 1 ? "" : "s") due")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.primaryText)
+                    Text(learningMethod.title)
+                        .font(.caption)
                         .foregroundStyle(AppTheme.secondaryText)
                 }
-            }
-
-            if deck.schedulerAlgorithm == .fsrs6 {
-                Slider(
-                    value: Binding(
-                        get: { deck.desiredRetention },
-                        set: {
-                            deck.desiredRetention = $0
-                            persistDeckSettings()
+                Spacer()
+                Menu {
+                    Section("Sessions") {
+                        ForEach(StudySessionKind.allCases) { kind in
+                            Button("\(kind.title) (\(sessionCount(kind)))") { beginStudy(kind) }
+                                .disabled(sessionCount(kind) == 0)
                         }
-                    ),
-                    in: 0.70...0.97,
-                    step: 0.01
-                )
-                .accessibilityLabel("FSRS target retention")
+                    }
+                    Divider()
+                    Button("Study Settings") { showingStudySettings = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3)
+                }
+                .accessibilityLabel("More study options")
             }
 
             Button {
-                beginStudy(.due)
+                beginStudy(dueCount == 0 ? .freePractice : .due)
             } label: {
-                Text("Study This Deck · \(dueCount) Due")
+                Text(dueCount == 0 ? "Practice Deck" : "Study Now")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(OrangeButtonStyle())
-            .disabled(dueCount == 0)
-
-            Menu {
-                ForEach(StudySessionKind.allCases) { kind in
-                    Button("\(kind.title) (\(sessionCount(kind)))") { beginStudy(kind) }
-                        .disabled(sessionCount(kind) == 0)
-                }
-            } label: {
-                Label("Choose another session", systemImage: "ellipsis.circle")
-                    .frame(maxWidth: .infinity)
-            }
+            .disabled(sessionCount(dueCount == 0 ? .freePractice : .due) == 0)
         }
         .padding(16)
         .darkPanel()
+    }
+
+    private var studySettings: some View {
+        NavigationStack {
+            Form {
+                Section("Learning Method") {
+                    Picker("Method", selection: $learningMethod) {
+                        ForEach(LearningMethod.allCases) { method in
+                            Text(method.title).tag(method)
+                        }
+                    }
+                    Text(learningMethod.shortDescription)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.secondaryText)
+                }
+
+                Section("Scheduling") {
+                    Picker("Scheduler", selection: Binding(
+                        get: { deck.schedulerAlgorithm },
+                        set: {
+                            deck.schedulerAlgorithm = $0
+                            persistDeckSettings()
+                        }
+                    )) {
+                        ForEach(SchedulerAlgorithm.allCases) { algorithm in
+                            Text(algorithm.title).tag(algorithm)
+                        }
+                    }
+
+                    if deck.schedulerAlgorithm == .fsrs6 {
+                        VStack(alignment: .leading) {
+                            Text("Target Retention: \(deck.desiredRetention, format: .percent.precision(.fractionLength(0)))")
+                            Slider(
+                                value: Binding(
+                                    get: { deck.desiredRetention },
+                                    set: {
+                                        deck.desiredRetention = $0
+                                        persistDeckSettings()
+                                    }
+                                ),
+                                in: 0.70...0.97,
+                                step: 0.01
+                            )
+                        }
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .navigationTitle("Study Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showingStudySettings = false }
+                }
+            }
+        }
+        .tint(AppTheme.orange)
     }
 
     private func metric(value: Int, label: String) -> some View {
