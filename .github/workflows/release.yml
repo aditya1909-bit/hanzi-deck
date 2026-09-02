@@ -93,3 +93,92 @@ jobs:
             --generate-notes \
             --latest \
             --title "Hanzi Deck $GITHUB_REF_NAME"
+
+  cross-platform:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install app workloads
+        run: dotnet workload install maui-android maui-windows
+
+      - name: Run shared core checks
+        run: dotnet run --project CrossPlatform/HanziDeck.CoreChecks/HanziDeck.CoreChecks.csproj --configuration Release
+
+      - name: Create Android signing key
+        shell: pwsh
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          $keyPath = Join-Path $env:RUNNER_TEMP "hanzi-deck.keystore"
+          if ($env:ANDROID_KEYSTORE_BASE64) {
+            [IO.File]::WriteAllBytes($keyPath, [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+          } else {
+            $env:ANDROID_KEY_ALIAS = "hanzi-deck"
+            $env:ANDROID_KEY_PASSWORD = "temporary-release-key"
+            $env:ANDROID_STORE_PASSWORD = "temporary-release-key"
+            keytool -genkeypair -v -keystore $keyPath -alias $env:ANDROID_KEY_ALIAS -keyalg RSA -keysize 2048 -validity 10000 -storepass $env:ANDROID_STORE_PASSWORD -keypass $env:ANDROID_KEY_PASSWORD -dname "CN=Hanzi Deck"
+          }
+          "ANDROID_KEYSTORE_PATH=$keyPath" >> $env:GITHUB_ENV
+          "ANDROID_KEY_ALIAS=$env:ANDROID_KEY_ALIAS" >> $env:GITHUB_ENV
+          "ANDROID_KEY_PASSWORD=$env:ANDROID_KEY_PASSWORD" >> $env:GITHUB_ENV
+          "ANDROID_STORE_PASSWORD=$env:ANDROID_STORE_PASSWORD" >> $env:GITHUB_ENV
+
+      - name: Publish Android APK
+        shell: pwsh
+        run: |
+          dotnet publish CrossPlatform/HanziDeck/HanziDeck.csproj -f net10.0-android -c Release `
+            -p:AndroidPackageFormats=apk `
+            -p:AndroidKeyStore=true `
+            -p:AndroidSigningKeyStore="$env:ANDROID_KEYSTORE_PATH" `
+            -p:AndroidSigningKeyAlias="$env:ANDROID_KEY_ALIAS" `
+            -p:AndroidSigningKeyPass="$env:ANDROID_KEY_PASSWORD" `
+            -p:AndroidSigningStorePass="$env:ANDROID_STORE_PASSWORD"
+          $apk = Get-ChildItem CrossPlatform/HanziDeck/bin/Release/net10.0-android/publish -Filter "*-Signed.apk" | Select-Object -First 1
+          if (-not $apk) { throw "Signed APK was not produced." }
+          Copy-Item $apk.FullName "$env:RUNNER_TEMP/HanziDeck-Android.apk"
+
+      - name: Publish self-contained Windows app
+        shell: pwsh
+        run: |
+          dotnet publish CrossPlatform/HanziDeck/HanziDeck.csproj -f net10.0-windows10.0.19041.0 -c Release `
+            -p:RuntimeIdentifierOverride=win-x64 `
+            -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=true `
+            --self-contained true
+          $publish = "CrossPlatform/HanziDeck/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish"
+          Compress-Archive -Path "$publish/*" -DestinationPath "$env:RUNNER_TEMP/HanziDeck-Windows-x64.zip"
+
+      - name: Collect downloads
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-platform-downloads
+          path: |
+            ${{ runner.temp }}/HanziDeck-Android.apk
+            ${{ runner.temp }}/HanziDeck-Windows-x64.zip
+          if-no-files-found: error
+
+  attach-cross-platform:
+    needs: [release, cross-platform]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packaged apps
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-platform-downloads
+          path: downloads
+
+      - name: Add Android and Windows downloads to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" downloads/* --repo "$GITHUB_REPOSITORY" --clobber
