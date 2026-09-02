@@ -1,6 +1,6 @@
 # Hanzi Deck
 
-Hanzi Deck is a native, offline-first macOS and iPhone flashcard app for learning Chinese words without losing sight of the individual characters inside them.
+Hanzi Deck is an offline-first flashcard app for macOS, iPhone, Windows, and Android. It is designed for learning Chinese words without losing sight of the individual characters inside them.
 
 Type a simplified or traditional Chinese word and the app fills in its tone-marked pinyin and English meaning from the bundled CC-CEDICT dictionary. You can also import screenshots or photos containing several words, review the OCR results, and create cards in a batch.
 
@@ -11,6 +11,14 @@ Type a simplified or traditional Chinese word and the app fills in its tone-mark
 Requires macOS 14 or newer. The download supports both Apple Silicon and Intel Macs. Open the disk image, then drag **Hanzi Deck** into **Applications**.
 
 If macOS asks for confirmation on first launch, open **System Settings → Privacy & Security** and choose **Open Anyway** for Hanzi Deck.
+
+### [Download Hanzi Deck for Windows](https://github.com/aditya1909-bit/hanzi-deck/releases/latest/download/HanziDeck-Windows-x64.zip)
+
+Requires 64-bit Windows 10 version 1809 or newer. Extract the ZIP, then open `HanziDeck.exe`.
+
+### [Download Hanzi Deck for Android](https://github.com/aditya1909-bit/hanzi-deck/releases/latest/download/HanziDeck-Android.apk)
+
+Requires Android 6 or newer. Open the APK on your phone and approve installation from your browser when Android asks.
 
 ### iPhone app
 
@@ -44,6 +52,7 @@ The chosen algorithm controls the next scheduled review. Word and character prog
 ## Highlights
 
 - Native SwiftUI interfaces for macOS 14+ and iOS 17+
+- Native .NET MAUI interfaces for Android 6+ and Windows 10+
 - Local-first decks and review progress with SwiftData
 - Portable deck export and import with review progress preserved
 - Private iCloud sync on iPhone
@@ -54,7 +63,7 @@ The chosen algorithm controls the next scheduled review. Word and character prog
 - Per-deck FSRS-6, SM-2, Leitner, or simple scheduling
 - Dark-only black and McLaren-orange design
 - Full keyboard review controls and VoiceOver labels
-- No account, analytics, or third-party runtime dependencies
+- No account or analytics
 
 ## Build or modify the app
 
@@ -84,6 +93,18 @@ Open `Package.swift` in Xcode, select the `HanziDeck` scheme, choose **My Mac**,
 
 For iPhone development, open `HanziDeckMobile.xcodeproj`, choose an iPhone or simulator, and run the `HanziDeckMobile` scheme. Select a development team when running on a physical device or testing iCloud sync.
 
+### Android and Windows development
+
+The Android and Windows apps share a .NET MAUI project while using native platform controls. See the [cross-platform development guide](CrossPlatform/README.md) for build, packaging, and architecture details.
+
+```bash
+dotnet workload install maui-android maui-windows
+dotnet build CrossPlatform/HanziDeck/HanziDeck.csproj -f net10.0-android
+dotnet build CrossPlatform/HanziDeck/HanziDeck.csproj -f net10.0-windows10.0.19041.0
+```
+
+Decks move between every version through the same `.hanzideck.json` import/export format, including cards, character contexts, scheduler choice, and review progress.
+
 ## Development
 
 ```bash
@@ -91,7 +112,7 @@ swift test
 swift build
 ```
 
-The codebase uses SwiftUI, SwiftData, Vision, and SQLite directly. Application code lives in `AppSources/HanziDeck`; tests live in `Tests/HanziDeckTests`.
+The Apple codebase uses SwiftUI, SwiftData, Vision, and SQLite directly. Application code lives in `AppSources/HanziDeck`; tests live in `Tests/HanziDeckTests`. Android and Windows code lives in `CrossPlatform/HanziDeck`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and project conventions. Bug reports and focused pull requests are welcome.
 
@@ -109,4 +130,4 @@ python3 Scripts/build_dictionary.py /path/to/cedict.txt.gz AppSources/HanziDeck/
 
 ## Privacy
 
-OCR and dictionary lookup happen on the device. The macOS app stores study data locally, while the iPhone app can use the learner’s private iCloud database for synchronization. Hanzi Deck has no separate account, analytics service, or developer-operated study-data server.
+OCR and dictionary lookup happen on the device. The macOS, Windows, and Android apps store study data locally, while the iPhone app can use the learner’s private iCloud database for synchronization. Portable deck files can be saved through a cloud-backed Files provider to move progress between platforms. Hanzi Deck has no separate account, analytics service, or developer-operated study-data server.

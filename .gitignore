@@ -11,6 +11,12 @@ xcuserdata/
 DerivedData/
 dist/
 
+# .NET MAUI build output
+**/bin/
+**/obj/
+*.user
+*.suo
+
 # Local project context (not part of the app)
 AGENTS.md
 sources/
