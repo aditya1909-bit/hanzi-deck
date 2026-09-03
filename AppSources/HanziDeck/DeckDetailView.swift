@@ -417,6 +417,15 @@ private struct WordRow: View {
                     .foregroundStyle(AppTheme.secondaryText)
                     .lineLimit(2)
             }
+            if !word.subsetName.isEmpty {
+                Text(word.subsetName)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.elevatedSurface)
+                    .clipShape(Capsule())
+            }
             Spacer()
             DueBadge(date: word.reviewState?.dueAt)
             Button(action: onEdit) { Image(systemName: "pencil") }

@@ -346,6 +346,11 @@ private struct MobileWordRow: View {
                         .font(.caption)
                         .foregroundStyle(AppTheme.secondaryText)
                         .lineLimit(2)
+                    if !word.subsetName.isEmpty {
+                        Text(word.subsetName)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(AppTheme.secondaryText)
+                    }
                 }
                 Spacer()
                 Image(systemName: "chevron.right")

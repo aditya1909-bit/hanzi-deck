@@ -204,7 +204,9 @@ public sealed class DeckPage : ContentPage
         var hanzi = new Label { FontSize = 29, FontAttributes = FontAttributes.Bold, WidthRequest = 120 };
         var pinyin = new Label { TextColor = Theme.Orange, FontSize = 15 };
         var meaning = Theme.Secondary("");
-        var detail = new VerticalStackLayout { Spacing = 3, Children = { pinyin, meaning } };
+        var subset = Theme.Secondary("");
+        subset.FontSize = 11;
+        var detail = new VerticalStackLayout { Spacing = 3, Children = { pinyin, meaning, subset } };
         var layout = new HorizontalStackLayout { Spacing = 16, Children = { hanzi, detail } };
         var panel = Theme.Panel(layout);
         panel.BindingContextChanged += (_, _) =>
@@ -213,6 +215,8 @@ public sealed class DeckPage : ContentPage
             hanzi.Text = word.Hanzi;
             pinyin.Text = word.Pinyin;
             meaning.Text = word.Meaning;
+            subset.Text = word.SubsetName;
+            subset.IsVisible = word.SubsetName.Length > 0;
         };
         var tap = new TapGestureRecognizer();
         tap.Tapped += async (_, _) =>
