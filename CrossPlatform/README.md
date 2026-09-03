@@ -8,7 +8,8 @@ The `HanziDeck` project is the native Android and Windows edition of Hanzi Deck.
 - Word and contextual character cards with independent review progress
 - Hanzi Recognition, Meaning Recall, Pinyin Recall, Character Context, and Mixed Review
 - FSRS-6, SM-2, Leitner, and Simple scheduling
-- Due Reviews, Learn New, Difficult Practice, Quick Cram, and Free Practice
+- Personalized Adaptive Learn, Due Reviews, Learn New, Difficult Practice, Quick Cram, and Free Practice
+- Named deck parts for splitting large decks into focused groups
 - On-device Chinese OCR for importing multiple words from screenshots or photos
 - Deck creation, editing, deletion, search, import, and export
 - The same portable `.hanzideck.json` format used by the Apple apps

@@ -36,7 +36,9 @@ Every deck supports five prompt styles:
 - **Character Context:** one character → contextual readings and source words
 - **Mixed Review:** a shuffled combination of all four
 
-The selected method can be combined with Due Reviews, Learn New, Difficult Practice, a 20-card Quick Cram, or an unrestricted Free Practice session. Due Reviews and Learn New update the spaced-repetition schedule; voluntary practice does not move due dates.
+The selected method can be combined with Adaptive Learn, Due Reviews, Learn New, Difficult Practice, a 20-card Quick Cram, or an unrestricted Free Practice session. Adaptive Learn chooses a manageable working set and learns its size, card priorities, same-session retries, and retry spacing from that learner's ratings. See [how Adaptive Learn works](docs/ADAPTIVE_LEARNING.md).
+
+Deck parts let you split a large deck into named lessons or chapters without duplicating cards. The selected part applies to browsing, adding words, image imports, and every study mode.
 
 ## Scheduling algorithms
 
@@ -57,6 +59,8 @@ The chosen algorithm controls the next scheduled review. Word and character prog
 - Portable deck export and import with review progress preserved
 - Private iCloud sync on iPhone
 - Separate schedules for word and character mastery
+- Personalized, on-device adaptive learning for large decks
+- Named deck parts for focused study
 - Automatic, editable offline dictionary lookup
 - Offline screenshot and photo import using Apple Vision
 - Simplified and traditional Chinese support
