@@ -13,6 +13,7 @@ public enum LearningMethod
 
 public enum SessionKind
 {
+    AdaptiveLearn,
     DueReviews,
     LearnNew,
     DifficultPractice,
@@ -23,6 +24,35 @@ public enum SessionKind
 public enum ReviewGrade { Again = 1, Hard = 2, Good = 3, Easy = 4 }
 public enum ReviewPhase { New, Learning, Review, Relearning }
 public enum SchedulerAlgorithm { Fsrs6, Sm2, Leitner, Simple }
+
+public sealed class AdaptiveGradePolicyModel
+{
+    public double SuccessEstimate { get; set; }
+    public int Observations { get; set; }
+    public double Gap { get; set; }
+}
+
+public sealed class AdaptiveProfileModel
+{
+    public double WorkingSetEstimate { get; set; } = 8;
+    public double RollingReward { get; set; } = 0.65;
+    public int RatingsCount { get; set; }
+    public AdaptiveGradePolicyModel Again { get; set; } = new() { SuccessEstimate = 0.25, Gap = 3 };
+    public AdaptiveGradePolicyModel Hard { get; set; } = new() { SuccessEstimate = 0.55, Gap = 4 };
+    public AdaptiveGradePolicyModel Good { get; set; } = new() { SuccessEstimate = 0.82, Gap = 6 };
+    public AdaptiveGradePolicyModel Easy { get; set; } = new() { SuccessEstimate = 0.94, Gap = 8 };
+
+    [JsonIgnore]
+    public int WorkingSetSize => Math.Clamp((int)Math.Round(WorkingSetEstimate), 4, 16);
+
+    public AdaptiveGradePolicyModel Policy(ReviewGrade grade) => grade switch
+    {
+        ReviewGrade.Again => Again,
+        ReviewGrade.Hard => Hard,
+        ReviewGrade.Good => Good,
+        _ => Easy
+    };
+}
 
 public static class StudyNames
 {
@@ -46,6 +76,7 @@ public static class StudyNames
 
     public static string Title(this SessionKind kind) => kind switch
     {
+        SessionKind.AdaptiveLearn => "Adaptive Learn",
         SessionKind.DueReviews => "Due Reviews",
         SessionKind.LearnNew => "Learn New",
         SessionKind.DifficultPractice => "Difficult Practice",
@@ -54,7 +85,7 @@ public static class StudyNames
     };
 
     public static bool UpdatesSchedule(this SessionKind kind) =>
-        kind is SessionKind.DueReviews or SessionKind.LearnNew;
+        kind is SessionKind.AdaptiveLearn or SessionKind.DueReviews or SessionKind.LearnNew;
 
     public static string Title(this SchedulerAlgorithm algorithm) => algorithm switch
     {
@@ -89,6 +120,8 @@ public sealed class DeckModel
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public string SchedulerAlgorithmRaw { get; set; } = "fsrs6";
     public double DesiredRetention { get; set; } = 0.9;
+    public List<string> Subsets { get; set; } = [];
+    public AdaptiveProfileModel AdaptiveProfile { get; set; } = new();
     public List<WordModel> Words { get; set; } = [];
     public List<CharacterReviewModel> Characters { get; set; } = [];
 
@@ -106,6 +139,7 @@ public sealed class WordModel
     public string Hanzi { get; set; } = "";
     public string Pinyin { get; set; } = "";
     public string Meaning { get; set; } = "";
+    public string SubsetName { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<CharacterContextModel> Characters { get; set; } = [];
@@ -138,6 +172,9 @@ public sealed class ReviewStateModel
     public double FsrsStability { get; set; }
     public double FsrsDifficulty { get; set; }
     public int LeitnerBox { get; set; } = 1;
+    public double AdaptiveMastery { get; set; } = 0.5;
+    public int AdaptiveAttempts { get; set; }
+    public int AdaptivePreviousGradeRaw { get; set; }
 
     [JsonIgnore]
     public ReviewPhase Phase
@@ -162,6 +199,8 @@ public sealed class DeckArchive
     [JsonPropertyName("updatedAt")] public DateTimeOffset UpdatedAt { get; set; }
     [JsonPropertyName("schedulerAlgorithmRaw")] public string SchedulerAlgorithmRaw { get; set; } = "fsrs6";
     [JsonPropertyName("desiredRetention")] public double DesiredRetention { get; set; } = 0.9;
+    [JsonPropertyName("subsetNames")] public List<string> SubsetNames { get; set; } = [];
+    [JsonPropertyName("adaptiveProfile")] public AdaptiveProfileModel? AdaptiveProfile { get; set; }
     [JsonPropertyName("words")] public List<WordArchive> Words { get; set; } = [];
     [JsonPropertyName("characters")] public List<CharacterReviewArchive> Characters { get; set; } = [];
 }
@@ -171,6 +210,7 @@ public sealed class WordArchive
     [JsonPropertyName("hanzi")] public string Hanzi { get; set; } = "";
     [JsonPropertyName("pinyin")] public string Pinyin { get; set; } = "";
     [JsonPropertyName("meaning")] public string Meaning { get; set; } = "";
+    [JsonPropertyName("subsetName")] public string SubsetName { get; set; } = "";
     [JsonPropertyName("createdAt")] public DateTimeOffset CreatedAt { get; set; }
     [JsonPropertyName("updatedAt")] public DateTimeOffset UpdatedAt { get; set; }
     [JsonPropertyName("characters")] public List<CharacterContextArchive> Characters { get; set; } = [];
@@ -203,6 +243,9 @@ public sealed class ReviewStateArchive
     [JsonPropertyName("fsrsStability")] public double FsrsStability { get; set; }
     [JsonPropertyName("fsrsDifficulty")] public double FsrsDifficulty { get; set; }
     [JsonPropertyName("leitnerBox")] public int LeitnerBox { get; set; } = 1;
+    [JsonPropertyName("adaptiveMastery")] public double? AdaptiveMastery { get; set; }
+    [JsonPropertyName("adaptiveAttempts")] public int? AdaptiveAttempts { get; set; }
+    [JsonPropertyName("adaptivePreviousGradeRaw")] public int? AdaptivePreviousGradeRaw { get; set; }
 
     public ReviewStateModel ToModel() => new()
     {
@@ -216,7 +259,12 @@ public sealed class ReviewStateArchive
         LastReviewAt = LastReviewAt,
         FsrsStability = Math.Max(0, FsrsStability),
         FsrsDifficulty = Math.Max(0, FsrsDifficulty),
-        LeitnerBox = Math.Max(1, LeitnerBox)
+        LeitnerBox = Math.Max(1, LeitnerBox),
+        AdaptiveMastery = Math.Clamp(AdaptiveMastery ?? 0.5, 0, 1),
+        AdaptiveAttempts = Math.Max(0, AdaptiveAttempts ?? 0),
+        AdaptivePreviousGradeRaw = Enum.IsDefined(typeof(ReviewGrade), AdaptivePreviousGradeRaw ?? 0)
+            ? AdaptivePreviousGradeRaw ?? 0
+            : 0
     };
 
     public static ReviewStateArchive FromModel(ReviewStateModel state) => new()
@@ -231,6 +279,9 @@ public sealed class ReviewStateArchive
         LastReviewAt = state.LastReviewAt,
         FsrsStability = state.FsrsStability,
         FsrsDifficulty = state.FsrsDifficulty,
-        LeitnerBox = state.LeitnerBox
+        LeitnerBox = state.LeitnerBox,
+        AdaptiveMastery = state.AdaptiveMastery,
+        AdaptiveAttempts = state.AdaptiveAttempts,
+        AdaptivePreviousGradeRaw = state.AdaptivePreviousGradeRaw
     };
 }

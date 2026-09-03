@@ -18,6 +18,7 @@ struct ImageImportView: View {
     @EnvironmentObject private var dictionary: DictionaryService
 
     let deck: Deck
+    let subsetName: String?
 
     @State private var showingFileImporter = false
     @State private var isProcessing = false
@@ -199,6 +200,7 @@ struct ImageImportView: View {
                     hanzi: item.hanzi,
                     pinyin: item.pinyin,
                     meaning: item.meaning,
+                    subsetName: subsetName ?? "",
                     breakdown: item.breakdown,
                     context: modelContext
                 )

@@ -16,7 +16,11 @@ struct MobileStudyView: View {
 
     init(configuration: StudyConfiguration) {
         self.configuration = configuration
-        _queue = State(initialValue: StudySessionQueue(prompts: configuration.prompts))
+        _queue = State(initialValue: StudySessionQueue(
+            prompts: configuration.prompts,
+            adaptive: configuration.sessionKind == .adaptive,
+            adaptiveProfile: configuration.adaptiveProfile
+        ))
     }
 
     var body: some View {
@@ -202,7 +206,10 @@ struct MobileStudyView: View {
 
     private func contextLines(for character: CharacterCard) -> [String] {
         let lines = character.sourceContexts.compactMap { context -> String? in
-            guard let source = context.sourceWord else { return nil }
+            guard let source = context.sourceWord,
+                  configuration.subsetName == nil || source.subsetName == configuration.subsetName else {
+                return nil
+            }
             return "\(context.pinyin) — \(source.hanzi)"
         }
         return Array(Set(lines)).sorted()
@@ -213,6 +220,9 @@ struct MobileStudyView: View {
             switch prompt {
             case .word(let word, _):
                 if let state = word.reviewState {
+                    if configuration.sessionKind == .adaptive, let deck = word.deck {
+                        AdaptiveStudy.record(grade, to: state, deck: deck)
+                    }
                     Scheduler.apply(
                         grade,
                         to: state,
@@ -223,6 +233,9 @@ struct MobileStudyView: View {
                 word.deck?.updatedAt = .now
             case .character(let character):
                 if let state = character.reviewState {
+                    if configuration.sessionKind == .adaptive, let deck = character.deck {
+                        AdaptiveStudy.record(grade, to: state, deck: deck)
+                    }
                     Scheduler.apply(
                         grade,
                         to: state,

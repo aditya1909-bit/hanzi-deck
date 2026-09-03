@@ -113,7 +113,7 @@ public sealed class DeckListPage : ContentPage
         {
             Preferences.Default.Set("welcomeShown", true);
             await DisplayAlertAsync("Welcome to Hanzi Deck",
-                "Create a deck, add Chinese words, and the offline dictionary fills in pinyin and meaning. Study due cards or practice any deck whenever you want.", "Get Started");
+                "Create a deck, add Chinese words, and the offline dictionary fills in pinyin and meaning. Split large decks into parts, then use Adaptive Learn for a personalized working set.", "Get Started");
         }
     }
 

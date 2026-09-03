@@ -51,6 +51,8 @@ struct DeckArchive: Codable {
     let updatedAt: Date
     let schedulerAlgorithmRaw: String
     let desiredRetention: Double
+    let subsetNames: [String]?
+    let adaptiveProfile: AdaptiveProfile?
     let words: [WordArchive]
     let characters: [CharacterReviewArchive]
 
@@ -62,6 +64,8 @@ struct DeckArchive: Codable {
         updatedAt = deck.updatedAt
         schedulerAlgorithmRaw = deck.schedulerAlgorithmRaw
         desiredRetention = deck.desiredRetention
+        subsetNames = deck.subsetNames
+        adaptiveProfile = deck.adaptiveProfile
         words = deck.words
             .sorted { $0.createdAt < $1.createdAt }
             .map(WordArchive.init)
@@ -75,6 +79,7 @@ struct WordArchive: Codable {
     let hanzi: String
     let pinyin: String
     let meaning: String
+    let subsetName: String?
     let createdAt: Date
     let updatedAt: Date
     let characters: [CharacterContextArchive]
@@ -84,6 +89,7 @@ struct WordArchive: Codable {
         hanzi = word.hanzi
         pinyin = word.pinyin
         meaning = word.meaning
+        subsetName = word.subsetName
         createdAt = word.createdAt
         updatedAt = word.updatedAt
         characters = word.contexts
@@ -128,6 +134,9 @@ struct ReviewStateArchive: Codable {
     let fsrsStability: Double
     let fsrsDifficulty: Double
     let leitnerBox: Int
+    let adaptiveMastery: Double?
+    let adaptiveAttempts: Int?
+    let adaptivePreviousGradeRaw: Int?
 
     init(state: ReviewStateFields) {
         dueAt = state.dueAt
@@ -141,6 +150,9 @@ struct ReviewStateArchive: Codable {
         fsrsStability = state.fsrsStability
         fsrsDifficulty = state.fsrsDifficulty
         leitnerBox = state.leitnerBox
+        adaptiveMastery = state.adaptiveMastery
+        adaptiveAttempts = state.adaptiveAttempts
+        adaptivePreviousGradeRaw = state.adaptivePreviousGradeRaw
     }
 
     func apply(to state: ReviewStateFields) {
@@ -155,6 +167,9 @@ struct ReviewStateArchive: Codable {
         state.fsrsStability = max(0, fsrsStability)
         state.fsrsDifficulty = max(0, fsrsDifficulty)
         state.leitnerBox = max(1, leitnerBox)
+        state.adaptiveMastery = min(1, max(0, adaptiveMastery ?? 0.5))
+        state.adaptiveAttempts = max(0, adaptiveAttempts ?? 0)
+        state.adaptivePreviousGradeRaw = ReviewGrade(rawValue: adaptivePreviousGradeRaw ?? 0)?.rawValue ?? 0
     }
 }
 
@@ -189,6 +204,10 @@ enum DeckTransferService {
         deck.schedulerAlgorithmRaw = SchedulerAlgorithm(rawValue: archive.schedulerAlgorithmRaw)?.rawValue
             ?? SchedulerAlgorithm.fsrs6.rawValue
         deck.desiredRetention = min(0.97, max(0.70, archive.desiredRetention))
+        deck.subsetNames = archive.subsetNames ?? []
+        if let adaptiveProfile = archive.adaptiveProfile {
+            deck.adaptiveProfile = adaptiveProfile
+        }
         context.insert(deck)
 
         do {
@@ -198,6 +217,7 @@ enum DeckTransferService {
                     hanzi: archivedWord.hanzi,
                     pinyin: archivedWord.pinyin,
                     meaning: archivedWord.meaning,
+                    subsetName: archivedWord.subsetName ?? "",
                     breakdown: archivedWord.characters.map {
                         CharacterDraft(glyph: $0.glyph, pinyin: $0.pinyin, position: $0.position)
                     },

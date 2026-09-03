@@ -13,6 +13,7 @@ struct CardEditorView: View {
     @State private var hanzi: String
     @State private var pinyin: String
     @State private var meaning: String
+    @State private var subsetName: String
     @State private var candidates: [DictionaryEntry] = []
     @State private var selectedCandidateID: Int64?
     @State private var breakdown: [CharacterDraft] = []
@@ -21,12 +22,13 @@ struct CardEditorView: View {
     @State private var isLookingUp = false
     @State private var lookupTask: Task<Void, Never>?
 
-    init(deck: Deck, word: WordCard? = nil) {
+    init(deck: Deck, word: WordCard? = nil, initialSubset: String? = nil) {
         self.deck = deck
         self.word = word
         _hanzi = State(initialValue: word?.hanzi ?? "")
         _pinyin = State(initialValue: word?.pinyin ?? "")
         _meaning = State(initialValue: word?.meaning ?? "")
+        _subsetName = State(initialValue: word?.subsetName ?? initialSubset ?? "")
         let contexts = word?.contexts
             .sorted { $0.position < $1.position }
             .compactMap { context -> CharacterDraft? in
@@ -121,6 +123,15 @@ struct CardEditorView: View {
                     TextField("Meaning", text: $meaning, axis: .vertical)
                         .textFieldStyle(DarkFieldStyle())
                         .lineLimit(2...5)
+
+                    fieldLabel("Deck part")
+                    Picker("Deck part", selection: $subsetName) {
+                        Text("Unfiled").tag("")
+                        ForEach(deck.subsetNames, id: \.self) { name in
+                            Text(name).tag(name)
+                        }
+                    }
+                    .labelsHidden()
 
                     if !breakdown.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
@@ -244,6 +255,7 @@ struct CardEditorView: View {
                     hanzi: hanzi,
                     pinyin: pinyin,
                     meaning: meaning,
+                    subsetName: subsetName,
                     breakdown: breakdown,
                     context: modelContext
                 )
@@ -253,6 +265,7 @@ struct CardEditorView: View {
                     hanzi: hanzi,
                     pinyin: pinyin,
                     meaning: meaning,
+                    subsetName: subsetName,
                     breakdown: breakdown,
                     context: modelContext
                 )

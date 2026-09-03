@@ -15,6 +15,10 @@ public sealed class DeckPage : ContentPage
     private readonly Button studyButton;
     private readonly Button wordsButton;
     private readonly Button charactersButton;
+    private readonly Picker subsetPicker;
+    private readonly Label wordCount;
+    private readonly Label characterCount;
+    private readonly Label dueCount;
     private LearningMethod method = LearningMethod.HanziRecognition;
     private bool showingWords = true;
 
@@ -27,11 +31,15 @@ public sealed class DeckPage : ContentPage
         Title = deck.Name;
 
         var add = new ToolbarItem { Text = "Add" };
-        add.Clicked += async (_, _) => await Navigation.PushAsync(new CardEditorPage(deck, store, dictionary));
+        add.Clicked += async (_, _) => await Navigation.PushAsync(
+            new CardEditorPage(deck, store, dictionary, initialSubset: SelectedSubset));
         ToolbarItems.Add(add);
         var more = new ToolbarItem { Text = "•••" };
         more.Clicked += DeckOptions;
         ToolbarItems.Add(more);
+
+        subsetPicker = new Picker { Title = "Deck part", HorizontalOptions = LayoutOptions.Fill };
+        RefreshSubsetChoices();
 
         var metrics = new Grid
         {
@@ -42,9 +50,12 @@ public sealed class DeckPage : ContentPage
                 new ColumnDefinition(GridLength.Star)
             }
         };
-        metrics.Add(Metric(deck.Words.Count, "Words"), 0);
-        metrics.Add(Metric(deck.Characters.Count, "Characters"), 1);
-        metrics.Add(Metric(DueCount(), "Due"), 2);
+        wordCount = MetricValue();
+        characterCount = MetricValue();
+        dueCount = MetricValue();
+        metrics.Add(Metric(wordCount, "Words"), 0);
+        metrics.Add(Metric(characterCount, "Characters"), 1);
+        metrics.Add(Metric(dueCount, "Due"), 2);
 
         studyStatus = new Label { FontSize = 18, FontAttributes = FontAttributes.Bold };
         studyMethod = Theme.Secondary("");
@@ -69,6 +80,25 @@ public sealed class DeckPage : ContentPage
         studyButton = new Button { Style = (Style)Application.Current.Resources["PrimaryButton"] };
         studyButton.Clicked += StartPrimaryStudy;
         var studyLayout = new VerticalStackLayout { Spacing = 12, Children = { studyHeader, studyButton } };
+
+        subsetPicker.SelectedIndexChanged += (_, _) => Refresh();
+        var newSubset = new Button
+        {
+            Text = "New Part",
+            Style = (Style)Application.Current.Resources["SecondaryButton"]
+        };
+        newSubset.Clicked += NewSubset;
+        var subsetRow = new Grid
+        {
+            ColumnSpacing = 8,
+            ColumnDefinitions =
+            {
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto)
+            },
+            Children = { subsetPicker, newSubset }
+        };
+        Grid.SetColumn(newSubset, 1);
 
         wordsButton = new Button { Text = "Words" };
         charactersButton = new Button { Text = "Characters" };
@@ -103,13 +133,15 @@ public sealed class DeckPage : ContentPage
                 new RowDefinition(GridLength.Auto),
                 new RowDefinition(GridLength.Auto),
                 new RowDefinition(GridLength.Auto),
+                new RowDefinition(GridLength.Auto),
                 new RowDefinition(GridLength.Star)
             },
-            Children = { metricsPanel, studyPanel, mode, cards }
+            Children = { metricsPanel, studyPanel, subsetRow, mode, cards }
         };
         Grid.SetRow(studyPanel, 1);
-        Grid.SetRow(mode, 2);
-        Grid.SetRow(cards, 3);
+        Grid.SetRow(subsetRow, 2);
+        Grid.SetRow(mode, 3);
+        Grid.SetRow(cards, 4);
         Content = page;
     }
 
@@ -119,18 +151,19 @@ public sealed class DeckPage : ContentPage
         Refresh();
     }
 
-    private View Metric(int value, string label) => new VerticalStackLayout
+    private static Label MetricValue() => new()
+    {
+        FontSize = 20,
+        FontAttributes = FontAttributes.Bold,
+        HorizontalTextAlignment = TextAlignment.Center
+    };
+
+    private View Metric(Label value, string label) => new VerticalStackLayout
     {
         Spacing = 2,
         Children =
         {
-            new Label
-            {
-                Text = value.ToString(),
-                FontSize = 20,
-                FontAttributes = FontAttributes.Bold,
-                HorizontalTextAlignment = TextAlignment.Center
-            },
+            value,
             new Label
             {
                 Text = label,
@@ -144,9 +177,12 @@ public sealed class DeckPage : ContentPage
     private void Refresh()
     {
         var due = DueCount();
+        wordCount.Text = ScopedWords().Count().ToString();
+        characterCount.Text = ScopedCharacters().Count().ToString();
+        dueCount.Text = due.ToString();
         studyStatus.Text = due == 0 ? "You’re caught up" : $"{due} card{(due == 1 ? "" : "s")} due";
         studyMethod.Text = method.Title();
-        studyButton.Text = due == 0 ? "Practice Deck" : "Study Now";
+        studyButton.Text = "Adaptive Learn";
         wordsButton.BackgroundColor = showingWords ? Theme.Orange : Theme.ElevatedSurface;
         wordsButton.TextColor = showingWords ? Theme.Background : Theme.PrimaryText;
         charactersButton.BackgroundColor = showingWords ? Theme.ElevatedSurface : Theme.Orange;
@@ -154,12 +190,12 @@ public sealed class DeckPage : ContentPage
         if (showingWords)
         {
             cards.ItemTemplate = new DataTemplate(CreateWordRow);
-            cards.ItemsSource = deck.Words.OrderBy(word => word.CreatedAt).ToList();
+            cards.ItemsSource = ScopedWords().OrderBy(word => word.CreatedAt).ToList();
         }
         else
         {
             cards.ItemTemplate = new DataTemplate(CreateCharacterRow);
-            cards.ItemsSource = deck.Characters.OrderBy(item => item.Glyph).ToList();
+            cards.ItemsSource = ScopedCharacters().OrderBy(item => item.Glyph).ToList();
         }
     }
 
@@ -198,7 +234,7 @@ public sealed class DeckPage : ContentPage
         {
             if (panel.BindingContext is not CharacterReviewModel character) return;
             glyph.Text = character.Glyph;
-            contexts.Text = string.Join("\n", deck.Words.SelectMany(word => word.Characters
+            contexts.Text = string.Join("\n", ScopedWords().SelectMany(word => word.Characters
                     .Where(item => item.Glyph == character.Glyph)
                     .Select(item => $"{item.Pinyin} — {word.Hanzi}"))
                 .Distinct());
@@ -206,17 +242,32 @@ public sealed class DeckPage : ContentPage
         return panel;
     }
 
-    private int DueCount() => StudySessionBuilder.Count(deck, method, SessionKind.DueReviews);
+    private string? SelectedSubset => subsetPicker.SelectedIndex switch
+    {
+        0 => null,
+        1 => "",
+        > 1 => (string)subsetPicker.SelectedItem,
+        _ => null
+    };
+
+    private IEnumerable<WordModel> ScopedWords() => deck.Words
+        .Where(word => SelectedSubset is null || word.SubsetName == SelectedSubset);
+
+    private IEnumerable<CharacterReviewModel> ScopedCharacters() => deck.Characters
+        .Where(character => SelectedSubset is null || ScopedWords().Any(word =>
+            word.Characters.Any(context => context.Glyph == character.Glyph)));
+
+    private int DueCount() => StudySessionBuilder.Count(
+        deck, method, SessionKind.DueReviews, SelectedSubset);
 
     private async void StartPrimaryStudy(object? sender, EventArgs e)
     {
-        var kind = DueCount() == 0 ? SessionKind.FreePractice : SessionKind.DueReviews;
-        await StartStudy(kind);
+        await StartStudy(SessionKind.AdaptiveLearn);
     }
 
     private async Task StartStudy(SessionKind kind)
     {
-        var configuration = StudySessionBuilder.Build(deck, method, kind);
+        var configuration = StudySessionBuilder.Build(deck, method, kind, SelectedSubset);
         if (configuration.Prompts.Count == 0)
         {
             await DisplayAlertAsync("No Cards", "There are no cards for this session.", "OK");
@@ -232,11 +283,12 @@ public sealed class DeckPage : ContentPage
     private async void StudyOptions(object? sender, EventArgs e)
     {
         var choice = await DisplayActionSheetAsync("Study", "Cancel", null,
-            "Choose Learning Method", "Due Reviews", "Learn New", "Difficult Practice",
+            "Choose Learning Method", "Adaptive Learn", "Due Reviews", "Learn New", "Difficult Practice",
             "Quick Cram", "Free Practice", "Scheduling Settings");
         switch (choice)
         {
             case "Choose Learning Method": await ChooseMethod(); break;
+            case "Adaptive Learn": await StartStudy(SessionKind.AdaptiveLearn); break;
             case "Due Reviews": await StartStudy(SessionKind.DueReviews); break;
             case "Learn New": await StartStudy(SessionKind.LearnNew); break;
             case "Difficult Practice": await StartStudy(SessionKind.DifficultPractice); break;
@@ -275,13 +327,15 @@ public sealed class DeckPage : ContentPage
     private async void DeckOptions(object? sender, EventArgs e)
     {
         var choice = await DisplayActionSheetAsync(deck.Name, "Cancel", "Delete Deck",
-            "Import from Images", "Export Deck", "Rename Deck");
+            "Import from Images", "Export Deck", "New Deck Part", "Delete Current Part", "Rename Deck");
         switch (choice)
         {
             case "Import from Images":
-                await Navigation.PushAsync(new ImageImportPage(deck, store, dictionary, ocr));
+                await Navigation.PushAsync(new ImageImportPage(deck, store, dictionary, ocr, SelectedSubset));
                 break;
             case "Export Deck": await ExportDeck(); break;
+            case "New Deck Part": await CreateSubset(); break;
+            case "Delete Current Part": await DeleteSubset(); break;
             case "Rename Deck":
                 var name = await DisplayPromptAsync("Rename Deck", "Deck name", "Save", "Cancel",
                     initialValue: deck.Name);
@@ -301,6 +355,45 @@ public sealed class DeckPage : ContentPage
                 }
                 break;
         }
+    }
+
+    private async void NewSubset(object? sender, EventArgs e) => await CreateSubset();
+
+    private async Task CreateSubset()
+    {
+        var name = await DisplayPromptAsync("New Deck Part", "Part name", "Create", "Cancel");
+        var clean = name?.Trim() ?? "";
+        if (clean.Length == 0) return;
+        if (!deck.Subsets.Contains(clean)) deck.Subsets.Add(clean);
+        deck.Subsets = deck.Subsets.Distinct().Order().ToList();
+        deck.UpdatedAt = DateTimeOffset.UtcNow;
+        await store.SaveAsync();
+        RefreshSubsetChoices(clean);
+        Refresh();
+    }
+
+    private async Task DeleteSubset()
+    {
+        var selected = SelectedSubset;
+        if (string.IsNullOrEmpty(selected)) return;
+        if (!await DisplayAlertAsync("Delete this part?",
+                "The words will remain in the deck as Unfiled.", "Delete", "Cancel")) return;
+        foreach (var word in deck.Words.Where(word => word.SubsetName == selected))
+            word.SubsetName = "";
+        deck.Subsets.Remove(selected);
+        deck.UpdatedAt = DateTimeOffset.UtcNow;
+        await store.SaveAsync();
+        RefreshSubsetChoices();
+        Refresh();
+    }
+
+    private void RefreshSubsetChoices(string? select = null)
+    {
+        var current = select ?? (subsetPicker.SelectedIndex > 1 ? subsetPicker.SelectedItem as string : null);
+        subsetPicker.ItemsSource = new[] { "All Cards", "Unfiled" }.Concat(deck.Subsets.Order()).ToList();
+        subsetPicker.SelectedIndex = current is null
+            ? 0
+            : ((IList<string>)subsetPicker.ItemsSource).IndexOf(current);
     }
 
     private async Task ExportDeck()

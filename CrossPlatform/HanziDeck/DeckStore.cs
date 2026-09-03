@@ -93,11 +93,14 @@ public sealed class DeckStore
             UpdatedAt = deck.UpdatedAt,
             SchedulerAlgorithmRaw = deck.SchedulerAlgorithmRaw,
             DesiredRetention = deck.DesiredRetention,
+            SubsetNames = deck.Subsets,
+            AdaptiveProfile = deck.AdaptiveProfile,
             Words = deck.Words.Select(word => new WordArchive
             {
                 Hanzi = word.Hanzi,
                 Pinyin = word.Pinyin,
                 Meaning = word.Meaning,
+                SubsetName = word.SubsetName,
                 CreatedAt = word.CreatedAt,
                 UpdatedAt = word.UpdatedAt,
                 Characters = word.Characters.Select(context => new CharacterContextArchive
@@ -131,11 +134,19 @@ public sealed class DeckStore
             UpdatedAt = archive.UpdatedAt,
             SchedulerAlgorithmRaw = archive.SchedulerAlgorithmRaw,
             DesiredRetention = Math.Clamp(archive.DesiredRetention, 0.70, 0.97),
+            Subsets = archive.SubsetNames
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim())
+                .Distinct()
+                .Order()
+                .ToList(),
+            AdaptiveProfile = archive.AdaptiveProfile ?? new AdaptiveProfileModel(),
             Words = archive.Words.Select(word => new WordModel
             {
                 Hanzi = word.Hanzi,
                 Pinyin = word.Pinyin,
                 Meaning = word.Meaning,
+                SubsetName = word.SubsetName?.Trim() ?? "",
                 CreatedAt = word.CreatedAt,
                 UpdatedAt = word.UpdatedAt,
                 Characters = word.Characters.Select(context => new CharacterContextModel

@@ -16,7 +16,10 @@ public sealed class StudyPage : ContentPage
     {
         this.configuration = configuration;
         this.store = store;
-        queue = new StudyQueue(configuration.Prompts);
+        queue = new StudyQueue(
+            configuration.Prompts,
+            configuration.SessionKind == SessionKind.AdaptiveLearn,
+            configuration.Deck.AdaptiveProfile);
         Title = configuration.Deck.Name;
 
         var close = new ToolbarItem { Text = "Close" };
@@ -164,6 +167,8 @@ public sealed class StudyPage : ContentPage
         var prompt = queue.Current!;
         if (configuration.SessionKind.UpdatesSchedule())
         {
+            if (configuration.SessionKind == SessionKind.AdaptiveLearn)
+                AdaptiveStudy.Record(grade, prompt.ReviewState, configuration.Deck);
             Scheduler.Apply(grade, prompt.ReviewState,
                 configuration.Deck.SchedulerAlgorithm, configuration.Deck.DesiredRetention);
             configuration.Deck.UpdatedAt = DateTimeOffset.UtcNow;

@@ -13,6 +13,7 @@ struct MobileCardEditorView: View {
     @State private var hanzi: String
     @State private var pinyin: String
     @State private var meaning: String
+    @State private var subsetName: String
     @State private var candidates: [DictionaryEntry] = []
     @State private var selectedCandidateID: Int64?
     @State private var breakdown: [CharacterDraft]
@@ -21,12 +22,13 @@ struct MobileCardEditorView: View {
     @State private var errorMessage: String?
     @State private var lookupTask: Task<Void, Never>?
 
-    init(deck: Deck, word: WordCard? = nil) {
+    init(deck: Deck, word: WordCard? = nil, initialSubset: String? = nil) {
         self.deck = deck
         self.word = word
         _hanzi = State(initialValue: word?.hanzi ?? "")
         _pinyin = State(initialValue: word?.pinyin ?? "")
         _meaning = State(initialValue: word?.meaning ?? "")
+        _subsetName = State(initialValue: word?.subsetName ?? initialSubset ?? "")
         let drafts = word?.contexts
             .sorted { $0.position < $1.position }
             .compactMap { context -> CharacterDraft? in
@@ -90,6 +92,15 @@ struct MobileCardEditorView: View {
                         .autocorrectionDisabled()
                     TextField("English meaning", text: $meaning, axis: .vertical)
                         .lineLimit(2...5)
+                }
+
+                Section("Deck part") {
+                    Picker("Part", selection: $subsetName) {
+                        Text("Unfiled").tag("")
+                        ForEach(deck.subsetNames, id: \.self) { name in
+                            Text(name).tag(name)
+                        }
+                    }
                 }
 
                 if !breakdown.isEmpty {
@@ -184,6 +195,7 @@ struct MobileCardEditorView: View {
                     hanzi: hanzi,
                     pinyin: pinyin,
                     meaning: meaning,
+                    subsetName: subsetName,
                     breakdown: breakdown,
                     context: modelContext
                 )
@@ -193,6 +205,7 @@ struct MobileCardEditorView: View {
                     hanzi: hanzi,
                     pinyin: pinyin,
                     meaning: meaning,
+                    subsetName: subsetName,
                     breakdown: breakdown,
                     context: modelContext
                 )

@@ -135,6 +135,95 @@ final class StudySessionBuilderTests: XCTestCase {
         XCTAssertEqual(queue.prompts[4].id, repeatedID)
     }
 
+    func testDeckPartLimitsTheStudySession() {
+        let deck = Deck(name: "Test", now: now)
+        for (index, part) in ["Lesson 1", "Lesson 2", "Lesson 1"].enumerated() {
+            let card = WordCard(
+                hanzi: "词\(index)",
+                pinyin: "cí",
+                meaning: "word",
+                subsetName: part,
+                deck: deck,
+                now: now
+            )
+            card.reviewState = WordReviewState(card: card, now: now)
+            deck.wordCards?.append(card)
+        }
+
+        let configuration = StudySessionBuilder.build(
+            deck: deck,
+            method: .hanziRecognition,
+            kind: .freePractice,
+            subsetName: "Lesson 1",
+            now: now
+        )
+
+        XCTAssertEqual(configuration.prompts.count, 2)
+        XCTAssertTrue(configuration.prompts.allSatisfy {
+            guard case .word(let word, _) = $0 else { return false }
+            return word.subsetName == "Lesson 1"
+        })
+    }
+
+    func testAdaptiveSessionUsesTheLearnedWorkingSetSize() {
+        let deck = Deck(name: "Test", now: now)
+        var profile = deck.adaptiveProfile
+        profile.workingSetEstimate = 5
+        deck.adaptiveProfile = profile
+        for index in 0..<20 {
+            let card = WordCard(
+                hanzi: "词\(index)",
+                pinyin: "cí",
+                meaning: "word",
+                deck: deck,
+                now: now
+            )
+            card.reviewState = WordReviewState(card: card, now: now)
+            deck.wordCards?.append(card)
+        }
+
+        XCTAssertEqual(
+            StudySessionBuilder.count(
+                deck: deck,
+                method: .hanziRecognition,
+                kind: .adaptive,
+                now: now
+            ),
+            5
+        )
+    }
+
+    func testAdaptiveFeedbackLearnsWorkingSetAndPreviousGradeOutcome() {
+        let deck = makeDeck()
+        let state = deck.words[0].reviewState!
+        state.adaptivePreviousGradeRaw = ReviewGrade.good.rawValue
+        let previousProfile = deck.adaptiveProfile
+
+        AdaptiveStudy.record(.again, to: state, deck: deck)
+
+        let learnedProfile = deck.adaptiveProfile
+        XCTAssertLessThan(learnedProfile.workingSetEstimate, previousProfile.workingSetEstimate)
+        XCTAssertLessThan(learnedProfile.good.successEstimate, previousProfile.good.successEstimate)
+        XCTAssertLessThan(learnedProfile.good.gap, previousProfile.good.gap)
+        XCTAssertEqual(state.adaptivePreviousGradeRaw, ReviewGrade.again.rawValue)
+    }
+
+    func testAdaptiveQueueCanLearnToRepeatGoodCards() {
+        let deck = makeDeck()
+        var profile = deck.adaptiveProfile
+        profile.good.successEstimate = 0.2
+        profile.good.observations = 8
+        var queue = StudySessionQueue(
+            prompts: [.word(deck.words[0], .hanziRecognition)],
+            adaptive: true,
+            adaptiveProfile: profile
+        )
+
+        queue.advance(after: .good)
+
+        XCTAssertEqual(queue.prompts.count, 2)
+    }
+
     private func makeDeck() -> Deck {
         let deck = Deck(name: "Test", now: now)
         let card = WordCard(

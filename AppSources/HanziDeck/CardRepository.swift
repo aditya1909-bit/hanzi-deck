@@ -26,6 +26,7 @@ enum CardRepository {
         hanzi: String,
         pinyin: String,
         meaning: String,
+        subsetName: String = "",
         breakdown: [CharacterDraft],
         context: ModelContext,
         now: Date = .now
@@ -44,6 +45,7 @@ enum CardRepository {
             hanzi: cleanHanzi,
             pinyin: pinyin.trimmingCharacters(in: .whitespacesAndNewlines),
             meaning: meaning.trimmingCharacters(in: .whitespacesAndNewlines),
+            subsetName: subsetName.trimmingCharacters(in: .whitespacesAndNewlines),
             deck: deck,
             now: now
         )
@@ -62,6 +64,7 @@ enum CardRepository {
         hanzi: String,
         pinyin: String,
         meaning: String,
+        subsetName: String = "",
         breakdown: [CharacterDraft],
         context: ModelContext,
         now: Date = .now
@@ -83,6 +86,7 @@ enum CardRepository {
         word.hanzi = cleanHanzi
         word.pinyin = pinyin.trimmingCharacters(in: .whitespacesAndNewlines)
         word.meaning = meaning.trimmingCharacters(in: .whitespacesAndNewlines)
+        word.subsetName = subsetName.trimmingCharacters(in: .whitespacesAndNewlines)
         word.updatedAt = now
         if promptChanged, let state = word.reviewState {
             reset(state, now: now)
@@ -175,5 +179,8 @@ enum CardRepository {
         state.fsrsStability = 0
         state.fsrsDifficulty = 0
         state.leitnerBox = 1
+        state.adaptiveMastery = 0.5
+        state.adaptiveAttempts = 0
+        state.adaptivePreviousGradeRaw = 0
     }
 }

@@ -16,6 +16,22 @@ struct MobileDeckView: View {
     @State private var editingWord: WordCard?
     @State private var exportDocument: DeckTransferDocument?
     @State private var showingDeckExporter = false
+    @State private var selectedSubset: String?
+    @State private var showingNewSubset = false
+    @State private var newSubsetName = ""
+    @State private var showingDeleteSubset = false
+
+    private var scopedWords: [WordCard] {
+        deck.words.filter { selectedSubset == nil || $0.subsetName == selectedSubset }
+    }
+
+    private var scopedCharacters: [CharacterCard] {
+        deck.characters.filter { character in
+            selectedSubset == nil || character.sourceContexts.contains {
+                $0.sourceWord?.subsetName == selectedSubset
+            }
+        }
+    }
 
     private var dueCount: Int {
         StudySessionBuilder.count(deck: deck, method: learningMethod, kind: .due)
@@ -27,6 +43,15 @@ struct MobileDeckView: View {
                 progressPanel
                 studyPanel
 
+                Picker("Deck part", selection: $selectedSubset) {
+                    Text("All Cards").tag(String?.none)
+                    Text("Unfiled").tag(Optional(""))
+                    ForEach(deck.subsetNames, id: \.self) { name in
+                        Text(name).tag(Optional(name))
+                    }
+                }
+                .pickerStyle(.menu)
+
                 Picker("Cards", selection: $browseMode) {
                     ForEach(StudyMode.allCases) { mode in
                         Text(mode.rawValue).tag(mode)
@@ -35,15 +60,15 @@ struct MobileDeckView: View {
                 .pickerStyle(.segmented)
 
                 if browseMode == .word {
-                    ForEach(deck.words.sorted { $0.createdAt < $1.createdAt }) { word in
+                    ForEach(scopedWords.sorted { $0.createdAt < $1.createdAt }) { word in
                         MobileWordRow(word: word) { editingWord = word }
                             .contextMenu {
                                 Button("Delete", role: .destructive) { delete(word) }
                             }
                     }
                 } else {
-                    ForEach(deck.characters.sorted { $0.createdAt < $1.createdAt }) { character in
-                        MobileCharacterRow(character: character)
+                    ForEach(scopedCharacters.sorted { $0.createdAt < $1.createdAt }) { character in
+                        MobileCharacterRow(character: character, subsetName: selectedSubset)
                     }
                 }
             }
@@ -61,6 +86,14 @@ struct MobileDeckView: View {
                     Button("Export Deck", systemImage: "square.and.arrow.up") {
                         exportDeck()
                     }
+                    Button("New Deck Part", systemImage: "folder.badge.plus") {
+                        showingNewSubset = true
+                    }
+                    if selectedSubset?.isEmpty == false {
+                        Button("Delete Current Part", systemImage: "folder.badge.minus", role: .destructive) {
+                            showingDeleteSubset = true
+                        }
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -74,13 +107,13 @@ struct MobileDeckView: View {
             }
         }
         .sheet(isPresented: $showingAddWord) {
-            MobileCardEditorView(deck: deck)
+            MobileCardEditorView(deck: deck, initialSubset: selectedSubset)
         }
         .sheet(item: $editingWord) { word in
             MobileCardEditorView(deck: deck, word: word)
         }
         .sheet(isPresented: $showingImageImport) {
-            MobileImageImportView(deck: deck)
+            MobileImageImportView(deck: deck, subsetName: selectedSubset)
         }
         .sheet(isPresented: $showingStudySettings) {
             studySettings
@@ -96,13 +129,26 @@ struct MobileDeckView: View {
         ) { _ in
             exportDocument = nil
         }
+        .alert("New Deck Part", isPresented: $showingNewSubset) {
+            TextField("Part name", text: $newSubsetName)
+            Button("Cancel", role: .cancel) { newSubsetName = "" }
+            Button("Create", action: createSubset)
+        } message: {
+            Text("Parts let you study a smaller group of words.")
+        }
+        .alert("Delete this part?", isPresented: $showingDeleteSubset) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive, action: deleteSelectedSubset)
+        } message: {
+            Text("The words will remain in the deck as Unfiled.")
+        }
     }
 
     private var progressPanel: some View {
         HStack(spacing: 0) {
-            metric(value: deck.words.count, label: "Words")
+            metric(value: scopedWords.count, label: "Words")
             Divider().overlay(AppTheme.divider)
-            metric(value: deck.characters.count, label: "Characters")
+            metric(value: scopedCharacters.count, label: "Characters")
             Divider().overlay(AppTheme.divider)
             metric(value: dueCount, label: "Due")
         }
@@ -142,13 +188,13 @@ struct MobileDeckView: View {
             }
 
             Button {
-                beginStudy(dueCount == 0 ? .freePractice : .due)
+                beginStudy(.adaptive)
             } label: {
-                Text(dueCount == 0 ? "Practice Deck" : "Study Now")
+                Text("Adaptive Learn")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(OrangeButtonStyle())
-            .disabled(sessionCount(dueCount == 0 ? .freePractice : .due) == 0)
+            .disabled(sessionCount(.adaptive) == 0)
         }
         .padding(16)
         .darkPanel()
@@ -228,14 +274,20 @@ struct MobileDeckView: View {
         let configuration = StudySessionBuilder.build(
             deck: deck,
             method: learningMethod,
-            kind: kind
+            kind: kind,
+            subsetName: selectedSubset
         )
         guard !configuration.prompts.isEmpty else { return }
         studyConfiguration = configuration
     }
 
     private func sessionCount(_ kind: StudySessionKind) -> Int {
-        StudySessionBuilder.count(deck: deck, method: learningMethod, kind: kind)
+        StudySessionBuilder.count(
+            deck: deck,
+            method: learningMethod,
+            kind: kind,
+            subsetName: selectedSubset
+        )
     }
 
     private func persistDeckSettings() {
@@ -254,6 +306,25 @@ struct MobileDeckView: View {
     private func exportDeck() {
         exportDocument = DeckTransferDocument(deck: deck)
         showingDeckExporter = true
+    }
+
+    private func createSubset() {
+        let cleanName = newSubsetName.trimmingCharacters(in: .whitespacesAndNewlines)
+        newSubsetName = ""
+        guard !cleanName.isEmpty else { return }
+        deck.subsetNames = deck.subsetNames + [cleanName]
+        selectedSubset = cleanName
+        persistDeckSettings()
+    }
+
+    private func deleteSelectedSubset() {
+        guard let name = selectedSubset, !name.isEmpty else { return }
+        for word in deck.words where word.subsetName == name {
+            word.subsetName = ""
+        }
+        deck.subsetNames = deck.subsetNames.filter { $0 != name }
+        selectedSubset = nil
+        persistDeckSettings()
     }
 }
 
@@ -291,10 +362,12 @@ private struct MobileWordRow: View {
 
 private struct MobileCharacterRow: View {
     let character: CharacterCard
+    let subsetName: String?
 
     private var contextLines: [String] {
         let lines = character.sourceContexts.compactMap { context -> String? in
-            guard let word = context.sourceWord else { return nil }
+            guard let word = context.sourceWord,
+                  subsetName == nil || word.subsetName == subsetName else { return nil }
             return "\(context.pinyin) — \(word.hanzi)"
         }
         return Array(Set(lines)).sorted()

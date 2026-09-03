@@ -48,7 +48,8 @@ var deck = new DeckModel
         new CharacterReviewModel { Glyph = "行" }
     ]
 };
-var context = StudySessionBuilder.Build(deck, LearningMethod.CharacterContext, SessionKind.FreePractice, false);
+var context = StudySessionBuilder.Build(
+    deck, LearningMethod.CharacterContext, SessionKind.FreePractice, shuffle: false);
 Check(context.Prompts.Count == 2 && context.Prompts.Any(prompt => prompt.ContextLines.Contains("háng — 银行")),
     "Character context generation failed.");
 
@@ -63,5 +64,26 @@ var repeated = queue.Current;
 queue.Advance(ReviewGrade.Again);
 Check(queue.Prompts.Count == 6 && queue.Prompts[4] == repeated && queue.ReviewedCount == 1,
     "Again should repeat a missed card later in the same session.");
+
+var largeDeck = new DeckModel { Name = "Large", Subsets = ["Lesson 1", "Lesson 2"] };
+largeDeck.AdaptiveProfile.WorkingSetEstimate = 5;
+largeDeck.Words = Enumerable.Range(0, 20).Select(index => new WordModel
+{
+    Hanzi = $"词{index}",
+    SubsetName = index < 9 ? "Lesson 1" : "Lesson 2"
+}).ToList();
+var lesson = StudySessionBuilder.Build(
+    largeDeck, LearningMethod.HanziRecognition, SessionKind.AdaptiveLearn, "Lesson 1");
+Check(lesson.Prompts.Count == 5 && lesson.Prompts.All(prompt => prompt.Word?.SubsetName == "Lesson 1"),
+    "Adaptive study should use the learned working-set size inside the selected deck part.");
+
+var adaptiveState = largeDeck.Words[0].ReviewState;
+adaptiveState.AdaptivePreviousGradeRaw = (int)ReviewGrade.Good;
+var oldWorkingSet = largeDeck.AdaptiveProfile.WorkingSetEstimate;
+var oldGoodSuccess = largeDeck.AdaptiveProfile.Good.SuccessEstimate;
+AdaptiveStudy.Record(ReviewGrade.Again, adaptiveState, largeDeck);
+Check(largeDeck.AdaptiveProfile.WorkingSetEstimate < oldWorkingSet &&
+      largeDeck.AdaptiveProfile.Good.SuccessEstimate < oldGoodSuccess,
+    "Adaptive feedback should personalize both working-set size and rating transitions.");
 
 Console.WriteLine("All Hanzi Deck cross-platform core checks passed.");

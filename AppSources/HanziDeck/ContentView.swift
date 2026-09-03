@@ -422,7 +422,7 @@ private struct WelcomeView: View {
                 TutorialStep(
                     number: "3",
                     title: "Study your way",
-                    detail: "Use Study Due for scheduled reviews or Free Practice whenever you want. Switch methods and character mode inside each deck."
+                    detail: "Split large decks into parts, then use Adaptive Learn to build a personalized working set. Other study methods remain available in each deck."
                 )
             }
 

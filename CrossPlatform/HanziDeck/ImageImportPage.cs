@@ -8,13 +8,20 @@ public sealed class ImageImportPage : ContentPage
     private readonly OcrService ocr;
     private readonly Editor recognizedText;
     private readonly Label status;
+    private readonly string subsetName;
 
-    public ImageImportPage(DeckModel deck, DeckStore store, DictionaryService dictionary, OcrService ocr)
+    public ImageImportPage(
+        DeckModel deck,
+        DeckStore store,
+        DictionaryService dictionary,
+        OcrService ocr,
+        string? subsetName = null)
     {
         this.deck = deck;
         this.store = store;
         this.dictionary = dictionary;
         this.ocr = ocr;
+        this.subsetName = subsetName ?? "";
         Title = "Import from Images";
 
         recognizedText = new Editor
@@ -94,6 +101,7 @@ public sealed class ImageImportPage : ContentPage
                 Hanzi = hanzi,
                 Pinyin = candidate.Pinyin,
                 Meaning = candidate.Meaning,
+                SubsetName = subsetName,
                 Characters = glyphs.Select((glyph, index) => new CharacterContextModel
                 {
                     Glyph = glyph,

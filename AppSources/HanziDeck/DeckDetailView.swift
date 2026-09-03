@@ -18,9 +18,25 @@ struct DeckDetailView: View {
     @State private var showingStudySettings = false
     @State private var studyConfiguration: StudyConfiguration?
     @State private var deleteTarget: WordCard?
+    @State private var selectedSubset: String?
+    @State private var showingNewSubset = false
+    @State private var newSubsetName = ""
+    @State private var showingDeleteSubset = false
+
+    private var scopedWords: [WordCard] {
+        deck.words.filter { selectedSubset == nil || $0.subsetName == selectedSubset }
+    }
+
+    private var scopedCharacters: [CharacterCard] {
+        deck.characters.filter { character in
+            selectedSubset == nil || character.sourceContexts.contains {
+                $0.sourceWord?.subsetName == selectedSubset
+            }
+        }
+    }
 
     private var filteredWords: [WordCard] {
-        deck.words
+        scopedWords
             .filter {
                 searchText.isEmpty
                     || $0.hanzi.localizedCaseInsensitiveContains(searchText)
@@ -31,7 +47,7 @@ struct DeckDetailView: View {
     }
 
     private var filteredCharacters: [CharacterCard] {
-        deck.characters
+        scopedCharacters
             .filter { character in
                 searchText.isEmpty
                     || character.glyph.contains(searchText)
@@ -48,7 +64,7 @@ struct DeckDetailView: View {
     }
 
     private var totalCount: Int {
-        mode == .word ? deck.words.count : deck.characters.count
+        mode == .word ? scopedWords.count : scopedCharacters.count
     }
 
     var body: some View {
@@ -59,10 +75,10 @@ struct DeckDetailView: View {
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showingAddCard) {
-            CardEditorView(deck: deck)
+            CardEditorView(deck: deck, initialSubset: selectedSubset)
         }
         .sheet(isPresented: $showingImageImport) {
-            ImageImportView(deck: deck)
+            ImageImportView(deck: deck, subsetName: selectedSubset)
         }
         .popover(isPresented: $showingStudySettings, arrowEdge: .top) {
             studySettings
@@ -88,6 +104,19 @@ struct DeckDetailView: View {
         } message: {
             Text("Its character contexts will also be removed. Review progress for characters still used by other words will be preserved.")
         }
+        .alert("New Deck Part", isPresented: $showingNewSubset) {
+            TextField("Part name", text: $newSubsetName)
+            Button("Cancel", role: .cancel) { newSubsetName = "" }
+            Button("Create", action: createSubset)
+        } message: {
+            Text("Parts let you study a smaller group of words without creating another deck.")
+        }
+        .alert("Delete this part?", isPresented: $showingDeleteSubset) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive, action: deleteSelectedSubset)
+        } message: {
+            Text("The words will remain in the deck as Unfiled.")
+        }
     }
 
     private var header: some View {
@@ -97,7 +126,7 @@ struct DeckDetailView: View {
                     Text(deck.name)
                         .font(.system(size: 30, weight: .bold))
                         .foregroundStyle(AppTheme.primaryText)
-                    Text("\(deck.words.count) words · \(deck.characters.count) unique characters")
+                    Text("\(scopedWords.count) words · \(scopedCharacters.count) unique characters")
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 Spacer()
@@ -105,6 +134,12 @@ struct DeckDetailView: View {
                     Button("Rename Deck", action: onRename)
                     Button("Export Deck", action: onExport)
                     Button("Import from Images", action: { showingImageImport = true })
+                    Button("New Deck Part…", action: { showingNewSubset = true })
+                    if selectedSubset?.isEmpty == false {
+                        Button("Delete Current Part", role: .destructive) {
+                            showingDeleteSubset = true
+                        }
+                    }
                     Divider()
                     Button("Delete Deck", role: .destructive, action: onDelete)
                 } label: {
@@ -122,6 +157,23 @@ struct DeckDetailView: View {
             }
 
             studyControls
+
+            HStack(spacing: 10) {
+                Text("PART")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(AppTheme.secondaryText)
+                Picker("Deck part", selection: $selectedSubset) {
+                    Text("All Cards").tag(String?.none)
+                    Text("Unfiled").tag(Optional(""))
+                    ForEach(deck.subsetNames, id: \.self) { name in
+                        Text(name).tag(Optional(name))
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 220)
+                Spacer()
+                Button("New Part") { showingNewSubset = true }
+            }
 
             HStack(spacing: 14) {
                 Picker("Browse", selection: $mode) {
@@ -171,11 +223,11 @@ struct DeckDetailView: View {
 
             Spacer()
 
-            Button(dueCount == 0 ? "Practice" : "Study") {
-                beginStudy(dueCount == 0 ? .freePractice : .due)
+            Button("Adaptive Learn") {
+                beginStudy(.adaptive)
             }
             .buttonStyle(OrangeButtonStyle())
-            .disabled(sessionCount(dueCount == 0 ? .freePractice : .due) == 0)
+            .disabled(sessionCount(.adaptive) == 0)
 
             Menu {
                 Section("Sessions") {
@@ -296,7 +348,7 @@ struct DeckDetailView: View {
                         }
                     } else {
                         ForEach(filteredCharacters) { character in
-                            CharacterRow(character: character)
+                            CharacterRow(character: character, subsetName: selectedSubset)
                         }
                     }
                 }
@@ -309,7 +361,8 @@ struct DeckDetailView: View {
         let configuration = StudySessionBuilder.build(
             deck: deck,
             method: learningMethod,
-            kind: kind
+            kind: kind,
+            subsetName: selectedSubset
         )
         guard !configuration.prompts.isEmpty else { return }
         studyConfiguration = configuration
@@ -319,8 +372,30 @@ struct DeckDetailView: View {
         StudySessionBuilder.count(
             deck: deck,
             method: learningMethod,
-            kind: kind
+            kind: kind,
+            subsetName: selectedSubset
         )
+    }
+
+    private func createSubset() {
+        let cleanName = newSubsetName.trimmingCharacters(in: .whitespacesAndNewlines)
+        newSubsetName = ""
+        guard !cleanName.isEmpty else { return }
+        deck.subsetNames = deck.subsetNames + [cleanName]
+        deck.updatedAt = .now
+        selectedSubset = cleanName
+        try? modelContext.save()
+    }
+
+    private func deleteSelectedSubset() {
+        guard let name = selectedSubset, !name.isEmpty else { return }
+        for word in deck.words where word.subsetName == name {
+            word.subsetName = ""
+        }
+        deck.subsetNames = deck.subsetNames.filter { $0 != name }
+        deck.updatedAt = .now
+        selectedSubset = nil
+        try? modelContext.save()
     }
 }
 
@@ -359,10 +434,12 @@ private struct WordRow: View {
 
 private struct CharacterRow: View {
     let character: CharacterCard
+    let subsetName: String?
 
     private var contextLines: [String] {
         let lines = character.sourceContexts.compactMap { context -> String? in
-            guard let word = context.sourceWord else { return nil }
+            guard let word = context.sourceWord,
+                  subsetName == nil || word.subsetName == subsetName else { return nil }
             return "\(context.pinyin) — \(word.hanzi)"
         }
         return Array(Set(lines)).sorted()

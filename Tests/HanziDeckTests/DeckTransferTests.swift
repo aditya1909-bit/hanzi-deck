@@ -11,6 +11,10 @@ final class DeckTransferTests: XCTestCase {
         let deck = Deck(name: "HSK 3", now: now)
         deck.schedulerAlgorithm = .leitner
         deck.desiredRetention = 0.86
+        deck.subsetNames = ["Week 1"]
+        var adaptiveProfile = deck.adaptiveProfile
+        adaptiveProfile.workingSetEstimate = 6
+        deck.adaptiveProfile = adaptiveProfile
         context.insert(deck)
 
         let word = try CardRepository.addWord(
@@ -18,6 +22,7 @@ final class DeckTransferTests: XCTestCase {
             hanzi: "银行",
             pinyin: "yín háng",
             meaning: "bank",
+            subsetName: "Week 1",
             breakdown: [
                 CharacterDraft(glyph: "银", pinyin: "yín", position: 0),
                 CharacterDraft(glyph: "行", pinyin: "háng", position: 1)
@@ -48,8 +53,11 @@ final class DeckTransferTests: XCTestCase {
         XCTAssertEqual(imported.name, "HSK 3 (Imported)")
         XCTAssertEqual(imported.schedulerAlgorithm, .leitner)
         XCTAssertEqual(imported.desiredRetention, 0.86, accuracy: 0.001)
+        XCTAssertEqual(imported.subsetNames, ["Week 1"])
+        XCTAssertEqual(imported.adaptiveProfile.workingSetSize, 6)
         XCTAssertEqual(imported.words.count, 1)
         XCTAssertEqual(imported.words[0].hanzi, "银行")
+        XCTAssertEqual(imported.words[0].subsetName, "Week 1")
         XCTAssertEqual(imported.words[0].contexts.count, 2)
         XCTAssertEqual(imported.words[0].reviewState?.intervalDays, 7)
         XCTAssertEqual(imported.words[0].reviewState?.repetitions, 4)

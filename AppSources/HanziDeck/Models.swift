@@ -49,6 +49,7 @@ enum LearningMethod: String, CaseIterable, Identifiable {
 }
 
 enum StudySessionKind: String, CaseIterable, Identifiable {
+    case adaptive
     case due
     case newCards
     case difficult
@@ -59,6 +60,7 @@ enum StudySessionKind: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .adaptive: "Adaptive Learn"
         case .due: "Due Reviews"
         case .newCards: "Learn New"
         case .difficult: "Difficult Practice"
@@ -69,6 +71,7 @@ enum StudySessionKind: String, CaseIterable, Identifiable {
 
     var description: String {
         switch self {
+        case .adaptive: "Work through eight cards chosen from your weakest and least-tested material"
         case .due: "Review everything currently due"
         case .newCards: "Focus on unseen and learning cards"
         case .difficult: "Practice lapsed and low-ease cards"
@@ -79,6 +82,7 @@ enum StudySessionKind: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .adaptive: "brain.head.profile"
         case .due: "clock"
         case .newCards: "sparkles"
         case .difficult: "exclamationmark.triangle"
@@ -88,7 +92,7 @@ enum StudySessionKind: String, CaseIterable, Identifiable {
     }
 
     var updatesSchedule: Bool {
-        self == .due || self == .newCards
+        self == .adaptive || self == .due || self == .newCards
     }
 }
 
@@ -144,6 +148,44 @@ enum ReviewGrade: Int, CaseIterable, Identifiable {
     }
 }
 
+struct AdaptiveGradePolicy: Codable {
+    var successEstimate: Double
+    var observations: Int
+    var gap: Double
+}
+
+struct AdaptiveProfile: Codable {
+    var workingSetEstimate: Double = 8
+    var rollingReward: Double = 0.65
+    var ratingsCount: Int = 0
+    var again = AdaptiveGradePolicy(successEstimate: 0.25, observations: 0, gap: 3)
+    var hard = AdaptiveGradePolicy(successEstimate: 0.55, observations: 0, gap: 4)
+    var good = AdaptiveGradePolicy(successEstimate: 0.82, observations: 0, gap: 6)
+    var easy = AdaptiveGradePolicy(successEstimate: 0.94, observations: 0, gap: 8)
+
+    var workingSetSize: Int {
+        min(16, max(4, Int(workingSetEstimate.rounded())))
+    }
+
+    func policy(for grade: ReviewGrade) -> AdaptiveGradePolicy {
+        switch grade {
+        case .again: again
+        case .hard: hard
+        case .good: good
+        case .easy: easy
+        }
+    }
+
+    mutating func setPolicy(_ policy: AdaptiveGradePolicy, for grade: ReviewGrade) {
+        switch grade {
+        case .again: again = policy
+        case .hard: hard = policy
+        case .good: good = policy
+        case .easy: easy = policy
+        }
+    }
+}
+
 @Model
 final class Deck {
     var id: UUID = UUID()
@@ -152,6 +194,8 @@ final class Deck {
     var updatedAt: Date = Date.now
     var schedulerAlgorithmRaw: String = SchedulerAlgorithm.fsrs6.rawValue
     var desiredRetention: Double = 0.9
+    var subsetNamesRaw: String = ""
+    var adaptiveProfileRaw: String = ""
 
     @Relationship(deleteRule: .cascade, inverse: \WordCard.deck)
     var wordCards: [WordCard]?
@@ -166,6 +210,8 @@ final class Deck {
         updatedAt = now
         schedulerAlgorithmRaw = SchedulerAlgorithm.fsrs6.rawValue
         desiredRetention = 0.9
+        subsetNamesRaw = ""
+        adaptiveProfileRaw = ""
         wordCards = []
         characterCards = []
     }
@@ -177,6 +223,34 @@ final class Deck {
 
     var words: [WordCard] { wordCards ?? [] }
     var characters: [CharacterCard] { characterCards ?? [] }
+
+    var subsetNames: [String] {
+        get {
+            let saved = subsetNamesRaw.split(separator: "\n").map(String.init)
+            let used = words.map(\.subsetName).filter { !$0.isEmpty }
+            return Array(Set(saved + used)).sorted()
+        }
+        set {
+            subsetNamesRaw = Array(Set(newValue.map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            }.filter { !$0.isEmpty })).sorted().joined(separator: "\n")
+        }
+    }
+
+    var adaptiveProfile: AdaptiveProfile {
+        get {
+            guard let data = adaptiveProfileRaw.data(using: .utf8),
+                  let profile = try? JSONDecoder().decode(AdaptiveProfile.self, from: data) else {
+                return AdaptiveProfile()
+            }
+            return profile
+        }
+        set {
+            guard let data = try? JSONEncoder().encode(newValue),
+                  let encoded = String(data: data, encoding: .utf8) else { return }
+            adaptiveProfileRaw = encoded
+        }
+    }
 }
 
 @Model
@@ -185,6 +259,7 @@ final class WordCard {
     var hanzi: String = ""
     var pinyin: String = ""
     var meaning: String = ""
+    var subsetName: String = ""
     var createdAt: Date = Date.now
     var updatedAt: Date = Date.now
     var deck: Deck?
@@ -195,11 +270,19 @@ final class WordCard {
     @Relationship(deleteRule: .cascade, inverse: \CharacterContext.sourceWord)
     var characterContexts: [CharacterContext]?
 
-    init(hanzi: String, pinyin: String, meaning: String, deck: Deck, now: Date = .now) {
+    init(
+        hanzi: String,
+        pinyin: String,
+        meaning: String,
+        subsetName: String = "",
+        deck: Deck,
+        now: Date = .now
+    ) {
         id = UUID()
         self.hanzi = hanzi
         self.pinyin = pinyin
         self.meaning = meaning
+        self.subsetName = subsetName
         createdAt = now
         updatedAt = now
         self.deck = deck
@@ -266,6 +349,9 @@ protocol ReviewStateFields: AnyObject {
     var fsrsStability: Double { get set }
     var fsrsDifficulty: Double { get set }
     var leitnerBox: Int { get set }
+    var adaptiveMastery: Double { get set }
+    var adaptiveAttempts: Int { get set }
+    var adaptivePreviousGradeRaw: Int { get set }
 }
 
 extension ReviewStateFields {
@@ -289,6 +375,9 @@ final class WordReviewState: ReviewStateFields {
     var fsrsStability: Double = 0
     var fsrsDifficulty: Double = 0
     var leitnerBox: Int = 1
+    var adaptiveMastery: Double = 0.5
+    var adaptiveAttempts: Int = 0
+    var adaptivePreviousGradeRaw: Int = 0
     var card: WordCard?
 
     init(card: WordCard, now: Date = .now) {
@@ -304,6 +393,9 @@ final class WordReviewState: ReviewStateFields {
         fsrsStability = 0
         fsrsDifficulty = 0
         leitnerBox = 1
+        adaptiveMastery = 0.5
+        adaptiveAttempts = 0
+        adaptivePreviousGradeRaw = 0
         self.card = card
     }
 }
@@ -322,6 +414,9 @@ final class CharacterReviewState: ReviewStateFields {
     var fsrsStability: Double = 0
     var fsrsDifficulty: Double = 0
     var leitnerBox: Int = 1
+    var adaptiveMastery: Double = 0.5
+    var adaptiveAttempts: Int = 0
+    var adaptivePreviousGradeRaw: Int = 0
     var card: CharacterCard?
 
     init(card: CharacterCard, now: Date = .now) {
@@ -337,6 +432,9 @@ final class CharacterReviewState: ReviewStateFields {
         fsrsStability = 0
         fsrsDifficulty = 0
         leitnerBox = 1
+        adaptiveMastery = 0.5
+        adaptiveAttempts = 0
+        adaptivePreviousGradeRaw = 0
         self.card = card
     }
 }

@@ -9,6 +9,7 @@ public sealed class CardEditorPage : ContentPage
     private readonly Entry hanzi;
     private readonly Entry pinyin;
     private readonly Editor meaning;
+    private readonly Picker subset;
     private readonly Picker candidates;
     private readonly Label lookupStatus;
     private readonly VerticalStackLayout characterFields;
@@ -17,7 +18,7 @@ public sealed class CardEditorPage : ContentPage
     private IReadOnlyList<DictionaryCandidate> results = [];
 
     public CardEditorPage(DeckModel deck, DeckStore store, DictionaryService dictionary,
-        WordModel? existing = null)
+        WordModel? existing = null, string? initialSubset = null)
     {
         this.deck = deck;
         this.store = store;
@@ -34,6 +35,15 @@ public sealed class CardEditorPage : ContentPage
             AutoSize = EditorAutoSizeOption.TextChanges,
             MinimumHeightRequest = 90
         };
+        subset = new Picker
+        {
+            Title = "Deck part",
+            ItemsSource = new[] { "Unfiled" }.Concat(deck.Subsets.Order()).ToList()
+        };
+        var selectedSubset = existing?.SubsetName ?? initialSubset ?? "";
+        subset.SelectedIndex = selectedSubset.Length == 0
+            ? 0
+            : ((IList<string>)subset.ItemsSource).IndexOf(selectedSubset);
         candidates = new Picker { Title = "Dictionary match" };
         candidates.SelectedIndexChanged += CandidateChanged;
         lookupStatus = Theme.Secondary("Type Chinese characters to look them up automatically.");
@@ -66,6 +76,7 @@ public sealed class CardEditorPage : ContentPage
                     candidates,
                     Field("Pinyin", pinyin),
                     Field("Meaning", meaning),
+                    Field("Deck part", subset),
                     Field("Character readings", characterFields),
                     Theme.Secondary("Confirm the pronunciation used by each character in this word."),
                     Theme.Secondary("Pinyin and meaning are suggestions. You can change either before saving."),
@@ -159,6 +170,7 @@ public sealed class CardEditorPage : ContentPage
             Hanzi = cleanHanzi,
             Pinyin = cleanPinyin,
             Meaning = cleanMeaning,
+            SubsetName = subset.SelectedIndex <= 0 ? "" : (string)subset.SelectedItem,
             CreatedAt = existing?.CreatedAt ?? DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
             ReviewState = existing is not null && !promptChanged ? existing.ReviewState : new ReviewStateModel(),
