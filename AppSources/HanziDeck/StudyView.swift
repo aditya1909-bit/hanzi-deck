@@ -7,11 +7,16 @@ struct StudyView: View {
     @Environment(\.modelContext) private var modelContext
 
     let configuration: StudyConfiguration
-    @State private var index = 0
+    @State private var queue: StudySessionQueue
     @State private var isRevealed = false
 
     private var prompt: StudyPrompt? {
-        configuration.prompts.indices.contains(index) ? configuration.prompts[index] : nil
+        queue.current
+    }
+
+    init(configuration: StudyConfiguration) {
+        self.configuration = configuration
+        _queue = State(initialValue: StudySessionQueue(prompts: configuration.prompts))
     }
 
     var body: some View {
@@ -48,7 +53,7 @@ struct StudyView: View {
             }
             Spacer()
             if prompt != nil {
-                Text("\(index + 1) / \(configuration.prompts.count)")
+                Text("\(queue.index + 1) / \(queue.prompts.count)")
                     .foregroundStyle(AppTheme.secondaryText)
             }
         }
@@ -166,7 +171,7 @@ struct StudyView: View {
             Text("Session complete")
                 .font(.title.bold())
                 .foregroundStyle(AppTheme.primaryText)
-            Text("You reviewed \(configuration.prompts.count) cards from \(configuration.deckName).")
+            Text("You completed \(queue.reviewedCount) reviews from \(configuration.deckName).")
                 .foregroundStyle(AppTheme.secondaryText)
             Button("Done") { dismiss() }
                 .buttonStyle(OrangeButtonStyle())
@@ -238,7 +243,7 @@ struct StudyView: View {
             }
             try? modelContext.save()
         }
-        index += 1
+        queue.advance(after: grade)
         isRevealed = false
     }
 }

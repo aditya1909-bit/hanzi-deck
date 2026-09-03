@@ -106,6 +106,35 @@ final class StudySessionBuilderTests: XCTestCase {
         XCTAssertEqual(configuration.desiredRetention, 0.93, accuracy: 0.0001)
     }
 
+    func testAgainRepeatsTheCardLaterInTheSameSession() {
+        let deck = Deck(name: "Test", now: now)
+        for index in 0..<5 {
+            let card = WordCard(
+                hanzi: "词\(index)",
+                pinyin: "cí",
+                meaning: "word",
+                deck: deck,
+                now: now.addingTimeInterval(Double(index))
+            )
+            card.reviewState = WordReviewState(card: card, now: now)
+            deck.wordCards?.append(card)
+        }
+        let configuration = StudySessionBuilder.build(
+            deck: deck,
+            method: .hanziRecognition,
+            kind: .due,
+            now: now
+        )
+        var queue = StudySessionQueue(prompts: configuration.prompts)
+        let repeatedID = queue.current?.id
+
+        queue.advance(after: .again)
+
+        XCTAssertEqual(queue.prompts.count, 6)
+        XCTAssertEqual(queue.reviewedCount, 1)
+        XCTAssertEqual(queue.prompts[4].id, repeatedID)
+    }
+
     private func makeDeck() -> Deck {
         let deck = Deck(name: "Test", now: now)
         let card = WordCard(

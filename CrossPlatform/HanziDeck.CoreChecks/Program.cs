@@ -52,4 +52,16 @@ var context = StudySessionBuilder.Build(deck, LearningMethod.CharacterContext, S
 Check(context.Prompts.Count == 2 && context.Prompts.Any(prompt => prompt.ContextLines.Contains("háng — 银行")),
     "Character context generation failed.");
 
+var queue = new StudyQueue([
+    new StudyPrompt { Word = word },
+    new StudyPrompt { Word = new WordModel { Hanzi = "学习" } },
+    new StudyPrompt { Word = new WordModel { Hanzi = "旅行" } },
+    new StudyPrompt { Word = new WordModel { Hanzi = "知道" } },
+    new StudyPrompt { Word = new WordModel { Hanzi = "家庭" } }
+]);
+var repeated = queue.Current;
+queue.Advance(ReviewGrade.Again);
+Check(queue.Prompts.Count == 6 && queue.Prompts[4] == repeated && queue.ReviewedCount == 1,
+    "Again should repeat a missed card later in the same session.");
+
 Console.WriteLine("All Hanzi Deck cross-platform core checks passed.");

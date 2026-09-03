@@ -10,12 +10,13 @@ public sealed class StudyPage : ContentPage
     private readonly VerticalStackLayout answer;
     private readonly Button reveal;
     private readonly Grid grades;
-    private int index;
+    private readonly StudyQueue queue;
 
     public StudyPage(StudyConfiguration configuration, DeckStore store)
     {
         this.configuration = configuration;
         this.store = store;
+        queue = new StudyQueue(configuration.Prompts);
         Title = configuration.Deck.Name;
 
         var close = new ToolbarItem { Text = "Close" };
@@ -93,13 +94,13 @@ public sealed class StudyPage : ContentPage
 
     private void ShowPrompt()
     {
-        if (index >= configuration.Prompts.Count)
+        if (queue.Current is null)
         {
             ShowCompletion();
             return;
         }
-        var prompt = configuration.Prompts[index];
-        progress.Text = $"{configuration.SessionKind.Title()} · {index + 1} of {configuration.Prompts.Count}";
+        var prompt = queue.Current;
+        progress.Text = $"{configuration.SessionKind.Title()} · {queue.Index + 1} of {queue.Prompts.Count}";
         front.Text = prompt.Front;
         front.FontSize = prompt.Character is not null ? 108 : prompt.Style == WordPromptStyle.MeaningRecall ? 38 : 76;
         instruction.Text = prompt.Character is not null
@@ -118,7 +119,7 @@ public sealed class StudyPage : ContentPage
 
     private void Reveal()
     {
-        var prompt = configuration.Prompts[index];
+        var prompt = queue.Current!;
         if (prompt.Word is { } word)
         {
             if (prompt.Style != WordPromptStyle.HanziRecognition)
@@ -144,7 +145,7 @@ public sealed class StudyPage : ContentPage
 
     private async void RevealOrFinish(object? sender, EventArgs e)
     {
-        if (index >= configuration.Prompts.Count)
+        if (queue.Current is null)
             await Navigation.PopModalAsync();
         else
             Reveal();
@@ -160,7 +161,7 @@ public sealed class StudyPage : ContentPage
 
     private async Task Rate(ReviewGrade grade)
     {
-        var prompt = configuration.Prompts[index];
+        var prompt = queue.Current!;
         if (configuration.SessionKind.UpdatesSchedule())
         {
             Scheduler.Apply(grade, prompt.ReviewState,
@@ -168,7 +169,7 @@ public sealed class StudyPage : ContentPage
             configuration.Deck.UpdatedAt = DateTimeOffset.UtcNow;
             await store.SaveAsync();
         }
-        index++;
+        queue.Advance(grade);
         ShowPrompt();
     }
 
@@ -178,7 +179,7 @@ public sealed class StudyPage : ContentPage
         front.Text = "✓";
         front.FontSize = 70;
         front.TextColor = Theme.Orange;
-        instruction.Text = $"Session complete · {configuration.Prompts.Count} cards reviewed";
+        instruction.Text = $"Session complete · {queue.ReviewedCount} reviews completed";
         answer.IsVisible = false;
         grades.IsVisible = false;
         reveal.Text = "Done";

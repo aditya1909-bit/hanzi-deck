@@ -40,7 +40,7 @@ enum StudySessionBuilder {
     ) -> StudyConfiguration {
         let wordCards = selectWords(from: deck.words, kind: kind, now: now)
         let characterCards = selectCharacters(from: deck.characters, kind: kind, now: now)
-        let prompts: [StudyPrompt]
+        var prompts: [StudyPrompt]
 
         switch method {
         case .hanziRecognition:
@@ -56,8 +56,9 @@ enum StudySessionBuilder {
                 let styles = WordPromptStyle.allCases
                 return StudyPrompt.word(card, styles[index % styles.count])
             }
-            prompts = (wordPrompts + characterCards.map(StudyPrompt.character)).shuffled()
+            prompts = wordPrompts + characterCards.map(StudyPrompt.character)
         }
+        prompts.shuffle()
 
         return StudyConfiguration(
             deckName: deck.name,
@@ -157,5 +158,25 @@ enum StudySessionBuilder {
         case .freePractice:
             cards.shuffled()
         }
+    }
+}
+
+struct StudySessionQueue {
+    private(set) var prompts: [StudyPrompt]
+    private(set) var index = 0
+    private(set) var reviewedCount = 0
+
+    var current: StudyPrompt? {
+        prompts.indices.contains(index) ? prompts[index] : nil
+    }
+
+    mutating func advance(after grade: ReviewGrade) {
+        guard let current else { return }
+        if grade == .again {
+            let insertionIndex = min(index + 4, prompts.count)
+            prompts.insert(current, at: insertionIndex)
+        }
+        reviewedCount += 1
+        index += 1
     }
 }

@@ -7,11 +7,16 @@ struct MobileStudyView: View {
     @Environment(\.modelContext) private var modelContext
 
     let configuration: StudyConfiguration
-    @State private var index = 0
+    @State private var queue: StudySessionQueue
     @State private var isRevealed = false
 
     private var prompt: StudyPrompt? {
-        configuration.prompts.indices.contains(index) ? configuration.prompts[index] : nil
+        queue.current
+    }
+
+    init(configuration: StudyConfiguration) {
+        self.configuration = configuration
+        _queue = State(initialValue: StudySessionQueue(prompts: configuration.prompts))
     }
 
     var body: some View {
@@ -35,7 +40,7 @@ struct MobileStudyView: View {
                         VStack(spacing: 1) {
                             Text(configuration.deckName)
                                 .font(.headline)
-                            Text("\(index + 1) of \(configuration.prompts.count)")
+                            Text("\(queue.index + 1) of \(queue.prompts.count)")
                                 .font(.caption2)
                                 .foregroundStyle(AppTheme.secondaryText)
                         }
@@ -158,7 +163,7 @@ struct MobileStudyView: View {
             Text("Session complete")
                 .font(.title.bold())
                 .foregroundStyle(AppTheme.primaryText)
-            Text("You reviewed \(configuration.prompts.count) cards.")
+            Text("You completed \(queue.reviewedCount) reviews.")
                 .foregroundStyle(AppTheme.secondaryText)
             Button("Done") { dismiss() }
                 .buttonStyle(OrangeButtonStyle())
@@ -229,7 +234,7 @@ struct MobileStudyView: View {
             }
             try? modelContext.save()
         }
-        index += 1
+        queue.advance(after: grade)
         isRevealed = false
     }
 }

@@ -27,6 +27,23 @@ public sealed record StudyConfiguration(
     SessionKind SessionKind,
     List<StudyPrompt> Prompts);
 
+public sealed class StudyQueue(List<StudyPrompt> prompts)
+{
+    public List<StudyPrompt> Prompts { get; } = [.. prompts];
+    public int Index { get; private set; }
+    public int ReviewedCount { get; private set; }
+    public StudyPrompt? Current => Index < Prompts.Count ? Prompts[Index] : null;
+
+    public void Advance(ReviewGrade grade)
+    {
+        if (Current is not { } current) return;
+        if (grade == ReviewGrade.Again)
+            Prompts.Insert(Math.Min(Index + 4, Prompts.Count), current);
+        ReviewedCount++;
+        Index++;
+    }
+}
+
 public static class StudySessionBuilder
 {
     public static int Count(DeckModel deck, LearningMethod method, SessionKind kind) =>
@@ -43,8 +60,7 @@ public static class StudySessionBuilder
         };
 
         prompts = Filter(prompts, kind);
-        if (kind is SessionKind.QuickCram or SessionKind.FreePractice ||
-            method == LearningMethod.MixedReview && shuffle)
+        if (shuffle)
             prompts = prompts.OrderBy(_ => Random.Shared.Next()).ToList();
         if (kind == SessionKind.QuickCram) prompts = prompts.Take(20).ToList();
         return new StudyConfiguration(deck, method, kind, prompts);
